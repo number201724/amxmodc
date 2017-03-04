@@ -1,50 +1,55 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #include <time.h>
+
+#if defined WIN32
+#include <direct.h>
+#else
+#include <dirent.h>
+#endif
+
 #include "amxmodx.h"
 #include "fakemeta.h"
-#include "CMenu.h"
 #include "newmenus.h"
 #include "natives.h"
 #include "binlog.h"
 #include "optimizer.h"
 #include "libraries.h"
 #include "messages.h"
+#include "amxmod_compat.h"
 
 #include "datastructs.h"
-#include "CFlagManager.h"
-#include <amxmodx_version.h>
+#include "svn_version.h"
 #include "trie_natives.h"
-#include "CDataPack.h"
-#include "textparse.h"
-#include "CvarManager.h"
-#include "CLibrarySys.h"
-#include "CFileSystem.h"
-#include "gameconfigs.h"
-#include "CGameConfigs.h"
-#include <engine_strucs.h>
-#include <CDetour/detours.h>
-#include "CoreConfig.h"
-
-plugin_info_t Plugin_info = 
-{
-	META_INTERFACE_VERSION,		// ifvers
-	"AMX Mod X",				// name
-	AMXX_VERSION,			// version
-	__DATE__,					// date
-	"AMX Mod X Dev Team",		// author
-	"http://www.amxmodx.org",	// url
-	"AMXX",						// logtag
-	PT_STARTUP,					// (when) loadable
-	PT_ANYTIME,					// (when) unloadable
-};
 
 meta_globals_t *gpMetaGlobals;
 gamedll_funcs_t *gpGamedllFuncs;
@@ -59,11 +64,12 @@ void (*function)(void*);
 void (*endfunction)(void*);
 
 extern List<AUTHORIZEFUNC> g_auth_funcs;
-extern ke::Vector<CAdminData *> DynamicAdmins;
+extern CVector<CAdminData *> DynamicAdmins;
 
 CLog g_log;
 CForwardMngr g_forwards;
 CList<CPlayer*> g_auth;
+CList<CCVar> g_cvars;
 CList<ForceObject> g_forcemodels;
 CList<ForceObject> g_forcesounds;
 CList<ForceObject> g_forcegeneric;
@@ -71,7 +77,6 @@ CPlayer g_players[33];
 CPlayer* mPlayer;
 CPluginMngr g_plugins;
 CTaskMngr g_tasksMngr;
-CFrameActionMngr g_frameActionMngr;
 CmdMngr g_commands;
 CFlagManager FlagMan;
 EventsMngr g_events;
@@ -79,8 +84,8 @@ Grenades g_grenades;
 LogEventsMngr g_logevents;
 MenuMngr g_menucmds;
 CLangMngr g_langMngr;
-ke::AString g_log_dir;
-ke::AString g_mod_name;
+String g_log_dir;
+String g_mod_name;
 XVars g_xvars;
 
 bool g_bmod_tfc;
@@ -105,7 +110,7 @@ bool g_NewDLL_Available = false;
 #ifdef MEMORY_TEST
 	float g_next_memreport_time;
 	unsigned int g_memreport_count;
-	ke::AString g_memreport_dir;
+	String g_memreport_dir;
 	bool g_memreport_enabled;
 	#define MEMREPORT_INTERVAL 300.0f	/* 5 mins */
 #endif // MEMORY_TEST
@@ -117,17 +122,13 @@ int mPlayerIndex;
 int mState;
 int g_srvindex;
 
-CDetour *DropClientDetour;
-
 cvar_t init_amxmodx_version = {"amxmodx_version", "", FCVAR_SERVER | FCVAR_SPONLY};
 cvar_t init_amxmodx_modules = {"amxmodx_modules", "", FCVAR_SPONLY};
 cvar_t init_amxmodx_debug = {"amx_debug", "1", FCVAR_SPONLY};
 cvar_t init_amxmodx_mldebug = {"amx_mldebug", "", FCVAR_SPONLY};
-cvar_t init_amxmodx_language = {"amx_language", "en", FCVAR_SERVER};
-cvar_t init_amxmodx_cl_langs = {"amx_client_languages", "1", FCVAR_SERVER};
+cvar_t init_amxmodx_cl_langs = {"amx_client_languages", "", FCVAR_SERVER};
 cvar_t* amxmodx_version = NULL;
 cvar_t* amxmodx_modules = NULL;
-cvar_t* amxmodx_language = NULL;
 cvar_t* hostname = NULL;
 cvar_t* mp_timelimit = NULL;
 
@@ -135,8 +136,6 @@ cvar_t* mp_timelimit = NULL;
 int FF_ClientCommand = -1;
 int FF_ClientConnect = -1;
 int FF_ClientDisconnect = -1;
-int FF_ClientDisconnected = -1;
-int FF_ClientRemove = -1;
 int FF_ClientInfoChanged = -1;
 int FF_ClientPutInServer = -1;
 int FF_PluginInit = -1;
@@ -147,26 +146,8 @@ int FF_PluginEnd = -1;
 int FF_InconsistentFile = -1;
 int FF_ClientAuthorized = -1;
 int FF_ChangeLevel = -1;
-int FF_ClientConnectEx = -1;
 
-IFileSystem* g_FileSystem;
-HLTypeConversion TypeConversion;
-
-bool ColoredMenus(const char *ModName)
-{
-	const char * pModNames[] = { "cstrike", "czero", "dmc", "dod", "tfc", "valve" };
-	const size_t ModsCount = sizeof(pModNames) / sizeof(const char *);
-
-	for (size_t i = 0; i < ModsCount; ++i)
-	{
-		if (strcmp(ModName, pModNames[i]) == 0)
-			return true; // this game modification currently supports colored menus	
-	}
-
-	return false; // no colored menus are supported for this game modification
-}
-
-void ParseAndOrAdd(CStack<ke::AString *> & files, const char *name)
+void ParseAndOrAdd(CStack<String *> & files, const char *name)
 {
 	if (strncmp(name, "plugins-", 8) == 0)
 	{
@@ -175,7 +156,7 @@ void ParseAndOrAdd(CStack<ke::AString *> & files, const char *name)
 		if (strcmp(&name[len-4], ".ini") == 0)
 		{
 #endif
-			ke::AString *pString = new ke::AString(name);
+			String *pString = new String(name);
 			files.push(pString);
 #if !defined WIN32
 		}
@@ -183,7 +164,7 @@ void ParseAndOrAdd(CStack<ke::AString *> & files, const char *name)
 	}
 }
 
-void BuildPluginFileList(const char *initialdir, CStack<ke::AString *> & files)
+void BuildPluginFileList(const char *initialdir, CStack<String *> & files)
 {
 	char path[255];
 #if defined WIN32
@@ -224,15 +205,15 @@ void BuildPluginFileList(const char *initialdir, CStack<ke::AString *> & files)
 //Loads a plugin list into the Plugin Cache and Load Modules cache
 void LoadExtraPluginsToPCALM(const char *initialdir)
 {
-	CStack<ke::AString *> files;
+	CStack<String *> files;
 	BuildPluginFileList(initialdir, files);
 	char path[255];
 	while (!files.empty())
 	{
-		ke::AString *pString = files.front();
-		ke::SafeSprintf(path, sizeof(path), "%s/%s",
+		String *pString = files.front();
+		snprintf(path, sizeof(path)-1, "%s/%s", 
 			initialdir,
-			pString->chars());
+			pString->c_str());
 		g_plugins.CALMFromFile(path);
 		delete pString;
 		files.pop();
@@ -241,15 +222,15 @@ void LoadExtraPluginsToPCALM(const char *initialdir)
 
 void LoadExtraPluginsFromDir(const char *initialdir)
 {
-	CStack<ke::AString *> files;
+	CStack<String *> files;
 	char path[255];
 	BuildPluginFileList(initialdir, files);
 	while (!files.empty())
 	{
-		ke::AString *pString = files.front();
-		ke::SafeSprintf(path, sizeof(path), "%s/%s",
+		String *pString = files.front();
+		snprintf(path, sizeof(path)-1, "%s/%s", 
 			initialdir,
-			pString->chars());
+			pString->c_str());
 		g_plugins.loadPluginsFromFile(path);
 		delete pString;
 		files.pop();
@@ -336,7 +317,7 @@ const char*	get_localinfo_r(const char *name, const char *def, char buffer[], si
 		SET_LOCALINFO((char*)name, (char*)(b = def));
 	}
 
-	ke::SafeSprintf(buffer, maxlength, "%s", b);
+	snprintf(buffer, maxlength, "%s", b);
 
 	return buffer;
 }
@@ -394,42 +375,42 @@ int	C_Spawn(edict_t *pent)
 	g_commands.registerPrefix("cm_");
 
 	// make sure localinfos are set
-	get_localinfo("amxx_basedir", "addons/amxmodx");
-	get_localinfo("amxx_pluginsdir", "addons/amxmodx/plugins");
-	get_localinfo("amxx_modulesdir", "addons/amxmodx/modules");
-	get_localinfo("amxx_configsdir", "addons/amxmodx/configs");
-	get_localinfo("amxx_customdir", "addons/amxmodx/custom");
+	get_localinfo("ext_basedir", "addons/amxmodx");
+	get_localinfo("ext_pluginsdir", "extension/plugins");
+	get_localinfo("ext_modulesdir", "extension/modules");
+	get_localinfo("ext_configsdir", "extension/configs");
+	get_localinfo("ext_customdir", "extension/custom");
 
 	// make sure bcompat localinfos are set
 	get_localinfo("amx_basedir", "addons/amxmodx");
-	get_localinfo("amx_configdir", "addons/amxmodx/configs");
-	get_localinfo("amx_langdir", "addons/amxmodx/data/amxmod-lang");
-	get_localinfo("amx_modulesdir", "addons/amxmodx/modules");
-	get_localinfo("amx_pluginsdir", "addons/amxmodx/plugins");
-	get_localinfo("amx_logdir", "addons/amxmodx/logs");
+	get_localinfo("amx_configdir", "extension/configs");
+	/*get_localinfo("amx_langdir", "extension/data/amxmod-lang");*/
+	get_localinfo("amx_modulesdir", "extension/modules");
+	get_localinfo("amx_pluginsdir", "extension/plugins");
+	get_localinfo("amx_logdir", "extension/logs");
 
 	FlagMan.LoadFile();
 
-	ArrayHandles.clear();
-	TrieHandles.clear();
-	TrieSnapshotHandles.clear();
-	DataPackHandles.clear();
-	TextParsersHandles.clear();
-	GameConfigHandle.clear();
+	for (unsigned int i=0; i<VectorHolder.size(); i++)
+	{
+		delete VectorHolder[i];
+	};
+	VectorHolder.clear();
 
+	g_TrieHandles.clear();
 	char map_pluginsfile_path[256];
 	char prefixed_map_pluginsfile[256];
 	char configs_dir[256];
 
 	// ###### Load modules
-	loadModules(get_localinfo("amxx_modules", "addons/amxmodx/configs/modules.ini"), PT_ANYTIME);
+	loadModules(get_localinfo("ext_modules", "extension/configs/modules.ini"), PT_ANYTIME);
 
-	get_localinfo_r("amxx_configsdir", "addons/amxmodx/configs", configs_dir, sizeof(configs_dir)-1);
-	g_plugins.CALMFromFile(get_localinfo("amxx_plugins", "addons/amxmodx/configs/plugins.ini"));
+	get_localinfo_r("ext_configsdir", "extension/configs", configs_dir, sizeof(configs_dir)-1);
+	g_plugins.CALMFromFile(get_localinfo("ext_plugins", "extension/configs/plugins.ini"));
 	LoadExtraPluginsToPCALM(configs_dir);
 	char temporaryMap[64], *tmap_ptr;
 
-	ke::SafeSprintf(temporaryMap, sizeof(temporaryMap), "%s", STRING(gpGlobals->mapname));
+	snprintf(temporaryMap, sizeof(temporaryMap), "%s", STRING(gpGlobals->mapname));
 
 	prefixed_map_pluginsfile[0] = '\0';
 	if ((tmap_ptr = strchr(temporaryMap, '_')) != NULL)
@@ -437,7 +418,7 @@ int	C_Spawn(edict_t *pent)
 		// this map has a prefix
 
 		*tmap_ptr = '\0';
-		ke::SafeSprintf(prefixed_map_pluginsfile,
+		snprintf(prefixed_map_pluginsfile, 
 			sizeof(prefixed_map_pluginsfile),
 			"%s/maps/plugins-%s.ini",
 			configs_dir,
@@ -445,7 +426,7 @@ int	C_Spawn(edict_t *pent)
 		g_plugins.CALMFromFile(prefixed_map_pluginsfile);
 	}
 
-	ke::SafeSprintf(map_pluginsfile_path,
+	snprintf(map_pluginsfile_path, 
 		sizeof(map_pluginsfile_path),
 		"%s/maps/plugins-%s.ini",
 		configs_dir,
@@ -455,15 +436,21 @@ int	C_Spawn(edict_t *pent)
 	int loaded = countModules(CountModules_Running); // Call after attachModules so all modules don't have pending stat
 	
 	// Set some info about amx version and modules
-	CVAR_SET_STRING(init_amxmodx_version.name, AMXX_VERSION);
+	CVAR_SET_STRING(init_amxmodx_version.name, SVN_VERSION_STRING);
 	char buffer[32];
 	sprintf(buffer, "%d", loaded);
 	CVAR_SET_STRING(init_amxmodx_modules.name, buffer);
 
 	// ###### Load Vault
 	char file[255];
-	g_vault.setSource(build_pathname_r(file, sizeof(file) - 1, "%s", get_localinfo("amxx_vault", "addons/amxmodx/configs/vault.ini")));
+	g_vault.setSource(build_pathname_r(file, sizeof(file) - 1, "%s", get_localinfo("ext_vault", "extension/configs/vault.ini")));
 	g_vault.loadVault();
+	
+	if (strlen(g_vault.get("server_language")) < 1)
+	{
+		g_vault.put("server_language", "en");
+		g_vault.saveVault();
+	}
 
 	// ###### Init time and freeze tasks
 	g_game_timeleft = g_bmod_dod ? 1.0f : 0.0f;
@@ -482,7 +469,7 @@ int	C_Spawn(edict_t *pent)
 		g_opt_level = 7;
 
 	// ###### Load AMX Mod X plugins
-	g_plugins.loadPluginsFromFile(get_localinfo("amxx_plugins", "addons/amxmodx/configs/plugins.ini"));
+	g_plugins.loadPluginsFromFile(get_localinfo("ext_plugins", "extension/configs/plugins.ini"));
 	LoadExtraPluginsFromDir(configs_dir);
 	g_plugins.loadPluginsFromFile(map_pluginsfile_path, false);
 	if (prefixed_map_pluginsfile[0] != '\0')
@@ -498,8 +485,6 @@ int	C_Spawn(edict_t *pent)
 	FF_ClientCommand = registerForward("client_command", ET_STOP, FP_CELL, FP_DONE);
 	FF_ClientConnect = registerForward("client_connect", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_ClientDisconnect = registerForward("client_disconnect", ET_IGNORE, FP_CELL, FP_DONE);
-	FF_ClientDisconnected = registerForward("client_disconnected", ET_IGNORE, FP_CELL, FP_CELL, FP_ARRAY, FP_CELL, FP_DONE);
-	FF_ClientRemove = registerForward("client_remove", ET_IGNORE, FP_CELL, FP_CELL, FP_STRING, FP_DONE);
 	FF_ClientInfoChanged = registerForward("client_infochanged", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_ClientPutInServer = registerForward("client_putinserver", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_PluginCfg = registerForward("plugin_cfg", ET_IGNORE, FP_DONE);
@@ -507,11 +492,8 @@ int	C_Spawn(edict_t *pent)
 	FF_PluginLog = registerForward("plugin_log", ET_STOP, FP_DONE);
 	FF_PluginEnd = registerForward("plugin_end", ET_IGNORE, FP_DONE);
 	FF_InconsistentFile = registerForward("inconsistent_file", ET_STOP, FP_CELL, FP_STRING, FP_STRINGEX, FP_DONE);
-	FF_ClientAuthorized = registerForward("client_authorized", ET_IGNORE, FP_CELL, FP_STRING, FP_DONE);
+	FF_ClientAuthorized = registerForward("client_authorized", ET_IGNORE, FP_CELL, FP_DONE);
 	FF_ChangeLevel = registerForward("server_changelevel", ET_STOP, FP_STRING, FP_DONE);
-	FF_ClientConnectEx = registerForward("client_connectex", ET_STOP, FP_CELL, FP_STRING, FP_STRING, FP_ARRAY, FP_DONE);
-
-	CoreCfg.OnAmxxInitialized();
 
 #if defined BINLOG_ENABLED
 	if (!g_BinLog.Open())
@@ -523,8 +505,6 @@ int	C_Spawn(edict_t *pent)
 #endif
 
 	modules_callPluginsLoaded();
-
-	TypeConversion.init();
 
 	// ###### Call precache forward function
 	g_dontprecache = false;
@@ -569,8 +549,6 @@ struct sUserMsg
 	{"WeapPickup", &gmsgWeapPickup, 0, false, false},
 	{"ResetHUD", &gmsgResetHUD, 0, false, false},
 	{"RoundTime", &gmsgRoundTime, 0, false, false},
-	{"SayText", &gmsgSayText, 0, false, false},
-	{"InitHUD", &gmsgInitHUD, Client_InitHUDEnd, true, false},
 	{0, 0, 0, false, false}
 };
 
@@ -622,11 +600,6 @@ void C_ServerActivate(edict_t *pEdictList, int edictCount, int clientMax)
 		}
 	}
 
-	if (DropClientDetour)
-	{
-		DropClientDetour->EnableDetour();
-	}
-
 	RETURN_META(MRES_IGNORED);
 }
 
@@ -643,11 +616,6 @@ void C_ServerActivate_Post(edict_t *pEdictList, int edictCount, int clientMax)
 
 	executeForwards(FF_PluginInit);
 	executeForwards(FF_PluginCfg);
-
-	CoreCfg.ExecuteMainConfig();    // Execute amxx.cfg
-	CoreCfg.ExecuteAutoConfigs();   // Execute configs created with AutoExecConfig native.
-	CoreCfg.SetMapConfigTimer(6.1); // Prepare per-map configs to be executed 6.1 seconds later.
-	                                // Original value which was used in admin.sma.
 
 	// Correct time in Counter-Strike and other mods (except DOD)
 	if (!g_bmod_dod)
@@ -676,35 +644,14 @@ void C_ServerDeactivate()
 	for (int i = 1; i <= gpGlobals->maxClients; ++i)
 	{
 		CPlayer	*pPlayer = GET_PLAYER_POINTER_I(i);
-
 		if (pPlayer->initialized)
-		{
-			// deprecated
 			executeForwards(FF_ClientDisconnect, static_cast<cell>(pPlayer->index));
-
-			if (DropClientDetour && !pPlayer->disconnecting)
-			{
-				executeForwards(FF_ClientDisconnected, static_cast<cell>(pPlayer->index), FALSE, prepareCharArray(const_cast<char*>(""), 0), 0);
-			}
-		}
 
 		if (pPlayer->ingame)
 		{
-			auto wasDisconnecting = pPlayer->disconnecting;
-
 			pPlayer->Disconnect();
 			--g_players_num;
-
-			if (!wasDisconnecting && DropClientDetour)
-			{
-				executeForwards(FF_ClientRemove, static_cast<cell>(pPlayer->index), FALSE, const_cast<char*>(""));
-			}
 		}
-	}
-
-	if (DropClientDetour)
-	{
-		DropClientDetour->DisableDetour();
 	}
 
 	g_players_num	= 0;
@@ -713,7 +660,7 @@ void C_ServerDeactivate()
 	RETURN_META(MRES_IGNORED);
 }
 
-extern ke::Vector<cell *> g_hudsync;
+extern CVector<cell *> g_hudsync;
 
 // After all clear whole AMX configuration
 // However leave AMX modules which are loaded only once
@@ -723,11 +670,8 @@ void C_ServerDeactivate_Post()
 		RETURN_META(MRES_IGNORED);
 
 	modules_callPluginsUnloading();
-
+	
 	detachReloadModules();
-
-	CoreCfg.Clear();
-
 	g_auth.clear();
 	g_commands.clear();
 	g_forcemodels.clear();
@@ -743,22 +687,19 @@ void C_ServerDeactivate_Post()
 	g_vault.clear();
 	g_xvars.clear();
 	g_plugins.clear();
-
-	g_CvarManager.OnPluginUnloaded();
-
 	ClearPluginLibraries();
 	modules_callPluginsUnloaded();
 
 	ClearMessages();
 	
 	// Flush the dynamic admins list
-	for (size_t iter=DynamicAdmins.length();iter--; )
+	for (size_t iter=DynamicAdmins.size();iter--; )
 	{
 		delete DynamicAdmins[iter];
 	}
 
 	DynamicAdmins.clear();
-	for (unsigned int i=0; i<g_hudsync.length(); i++)
+	for (unsigned int i=0; i<g_hudsync.size(); i++)
 		delete [] g_hudsync[i];
 	g_hudsync.clear();
 
@@ -776,19 +717,19 @@ void C_ServerDeactivate_Post()
 			tm *curTime = localtime(&td);
 			int i = 0;
 #if defined(__linux__) || defined(__APPLE__)
-			mkdir(build_pathname("%s/memreports", get_localinfo("amxx_basedir", "addons/amxmodx")), 0700);
+			mkdir(build_pathname("%s/memreports", get_localinfo("ext_basedir", "addons/amxmodx")), 0700);
 #else
-			mkdir(build_pathname("%s/memreports", get_localinfo("amxx_basedir", "addons/amxmodx")));
+			mkdir(build_pathname("%s/memreports", get_localinfo("ext_basedir", "addons/amxmodx")));
 #endif
 			while (true)
 			{
 				char buffer[256];
-				sprintf(buffer, "%s/memreports/D%02d%02d%03d", get_localinfo("amxx_basedir", "addons/amxmodx"), curTime->tm_mon + 1, curTime->tm_mday, i);
+				sprintf(buffer, "%s/memreports/D%02d%02d%03d", get_localinfo("ext_basedir", "addons/amxmodx"), curTime->tm_mon + 1, curTime->tm_mday, i);
 #if defined(__linux__) || defined(__APPLE__)
-				mkdir(build_pathname("%s", g_log_dir.chars()), 0700);
+				mkdir(build_pathname("%s", g_log_dir.c_str()), 0700);
 				if (mkdir(build_pathname(buffer), 0700) < 0)
 #else
-				mkdir(build_pathname("%s", g_log_dir.chars()));
+				mkdir(build_pathname("%s", g_log_dir.c_str()));
 				if (mkdir(build_pathname(buffer)) < 0)
 #endif
 				{
@@ -804,15 +745,15 @@ void C_ServerDeactivate_Post()
 						break;
 					}
 				}
-				g_memreport_dir = buffer;
+				g_memreport_dir.assign(buffer);
 				
 				// g_memreport_dir should be valid now
 				break;
 			}
 		}
 		
-		m_dumpMemoryReport(build_pathname("%s/r%03d.txt", g_memreport_dir.chars(), g_memreport_count));
-		AMXXLOG_Log("Memreport #%d created (file \"%s/r%03d.txt\") (interval %f)", g_memreport_count + 1, g_memreport_dir.chars(), g_memreport_count, MEMREPORT_INTERVAL);
+		m_dumpMemoryReport(build_pathname("%s/r%03d.txt", g_memreport_dir.c_str(), g_memreport_count));
+		AMXXLOG_Log("Memreport #%d created (file \"%s/r%03d.txt\") (interval %f)", g_memreport_count + 1, g_memreport_dir.c_str(), g_memreport_count, MEMREPORT_INTERVAL);
 		
 		g_memreport_count++;
 	}
@@ -842,94 +783,37 @@ BOOL C_ClientConnect_Post(edict_t *pEntity, const char *pszName, const char *psz
 				g_auth.put(aa);
 		} else {
 			pPlayer->Authorize();
-			const char* authid = GETPLAYERAUTHID(pEntity);
 			if (g_auth_funcs.size())
 			{
 				List<AUTHORIZEFUNC>::iterator iter, end=g_auth_funcs.end();
 				AUTHORIZEFUNC fn;
+				const char* authid = GETPLAYERAUTHID(pEntity);
 				for (iter=g_auth_funcs.begin(); iter!=end; iter++)
 				{
 					fn = (*iter);
 					fn(pPlayer->index, authid);
 				}
 			}
-			executeForwards(FF_ClientAuthorized, static_cast<cell>(pPlayer->index), authid);
+			executeForwards(FF_ClientAuthorized, static_cast<cell>(pPlayer->index));
 		}
 	}
 	
 	RETURN_META_VALUE(MRES_IGNORED, TRUE);
 }
 
-BOOL C_ClientConnect(edict_t *pEntity, const char *pszName, const char *pszAddress, char szRejectReason[128])
-{
-	CPlayer* pPlayer = GET_PLAYER_POINTER(pEntity);
-
-	if(executeForwards(FF_ClientConnectEx, static_cast<cell>(pPlayer->index), pszName, pszAddress, prepareCharArray(szRejectReason, 128, true)))
-		RETURN_META_VALUE(MRES_SUPERCEDE, FALSE);
-
-	RETURN_META_VALUE(MRES_IGNORED, TRUE);
-}
-
 void C_ClientDisconnect(edict_t *pEntity)
 {
 	CPlayer *pPlayer = GET_PLAYER_POINTER(pEntity);
-
 	if (pPlayer->initialized)
-	{
-		// deprecated
 		executeForwards(FF_ClientDisconnect, static_cast<cell>(pPlayer->index));
-		
-		if (DropClientDetour && !pPlayer->disconnecting)
-		{
-			executeForwards(FF_ClientDisconnected, static_cast<cell>(pPlayer->index), FALSE, prepareCharArray(const_cast<char*>(""), 0), 0);
-		}
-	}
 
 	if (pPlayer->ingame)
 	{
 		--g_players_num;
 	}
-
-	auto wasDisconnecting = pPlayer->disconnecting;
-
 	pPlayer->Disconnect();
 
-	if (!wasDisconnecting && DropClientDetour)
-	{
-		executeForwards(FF_ClientRemove, static_cast<cell>(pPlayer->index), FALSE, const_cast<char*>(""));
-	}
-
 	RETURN_META(MRES_IGNORED);
-}
-
-// void SV_DropClient(client_t *cl, qboolean crash, const char *fmt, ...);
-DETOUR_DECL_STATIC3_VAR(SV_DropClient, void, client_t*, cl, qboolean, crash, const char*, format)
-{
-	char buffer[1024];
-
-	va_list ap;
-	va_start(ap, format);
-	ke::SafeVsprintf(buffer, sizeof(buffer) - 1, format, ap);
-	va_end(ap);
-
-	auto pPlayer = cl->edict ? GET_PLAYER_POINTER(cl->edict) : nullptr;
-
-	if (pPlayer)
-	{
-		if (pPlayer->initialized)
-		{
-			pPlayer->disconnecting = true;
-			executeForwards(FF_ClientDisconnected, pPlayer->index, TRUE, prepareCharArray(buffer, sizeof(buffer), true), sizeof(buffer) - 1);
-		}
-	}
-
-	DETOUR_STATIC_CALL(SV_DropClient)(cl, crash, "%s", buffer);
-
-	if (pPlayer)
-	{
-		pPlayer->Disconnect();
-		executeForwards(FF_ClientRemove, pPlayer->index, TRUE, buffer);
-	}
 }
 
 void C_ClientPutInServer_Post(edict_t *pEntity)
@@ -954,25 +838,25 @@ void C_ClientUserInfoChanged_Post(edict_t *pEntity, char *infobuffer)
 	// Emulate bot connection and putinserver
 	if (pPlayer->ingame)
 	{
-		pPlayer->name =name;			//	Make sure player have name up to date
+		pPlayer->name.assign(name);			//	Make sure player have name up to date
 	} else if (pPlayer->IsBot()) {
 		pPlayer->Connect(name, "127.0.0.1"/*CVAR_GET_STRING("net_address")*/);
 
 		executeForwards(FF_ClientConnect, static_cast<cell>(pPlayer->index));
 
 		pPlayer->Authorize();
-		const char* authid = GETPLAYERAUTHID(pEntity);
 		if (g_auth_funcs.size())
 		{
 			List<AUTHORIZEFUNC>::iterator iter, end=g_auth_funcs.end();
 			AUTHORIZEFUNC fn;
+			const char* authid = GETPLAYERAUTHID(pEntity);
 			for (iter=g_auth_funcs.begin(); iter!=end; iter++)
 			{
 				fn = (*iter);
 				fn(pPlayer->index, authid);
 			}
 		}
-		executeForwards(FF_ClientAuthorized, static_cast<cell>(pPlayer->index), authid);
+		executeForwards(FF_ClientAuthorized, static_cast<cell>(pPlayer->index));
 
 		pPlayer->PutInServer();
 		++g_players_num;
@@ -1003,14 +887,14 @@ void C_ClientCommand(edict_t *pEntity)
 			size_t len = 0;
 			
 			sprintf(buf, "%s %s\n", Plugin_info.name, Plugin_info.version);
-			CLIENT_PRINT(pEntity, print_console, buf);
+			CLIENT_PRINT(pEntity, _print_console, buf);
 			len = sprintf(buf, "Authors: \n         David \"BAILOPAN\" Anderson, Pavol \"PM OnoTo\" Marko, Felix \"SniperBeamer\" Geyer\n");
 			len += sprintf(&buf[len], "         Jonny \"Got His Gun\" Bergstrom, Lukasz \"SidLuke\" Wlasinski\n");
-			CLIENT_PRINT(pEntity, print_console, buf);
+			CLIENT_PRINT(pEntity, _print_console, buf);
 			len = sprintf(buf, "         Christian \"Basic-Master\" Hammacher, Borja \"faluco\" Ferrer\n");
-			len += sprintf(&buf[len], "         Scott \"DS\" Ehlert\n");
+			len += sprintf(&buf[len], "         Scott \"Damaged Soul\" Ehlert\n");
 			len += sprintf(&buf[len], "Compiled: %s\nURL:http://www.amxmodx.org/\n", __DATE__ ", " __TIME__);
-			CLIENT_PRINT(pEntity, print_console, buf);
+			CLIENT_PRINT(pEntity, _print_console, buf);
 #ifdef JIT
 			sprintf(buf, "Core mode: JIT\n");
 #else
@@ -1020,7 +904,7 @@ void C_ClientCommand(edict_t *pEntity)
 			sprintf(buf, "Core mode: Normal\n");
 #endif
 #endif
-			CLIENT_PRINT(pEntity, print_console, buf);
+			CLIENT_PRINT(pEntity, _print_console, buf);
 			RETURN_META(MRES_SUPERCEDE);
 		}
 	}
@@ -1056,21 +940,12 @@ void C_ClientCommand(edict_t *pEntity)
 
 		if (pPlayer->keys &	bit_key)
 		{
-			if (gpGlobals->time > pPlayer->menuexpire)
+			if ((pPlayer->menu > 0 && !pPlayer->vgui) && (gpGlobals->time > pPlayer->menuexpire))
 			{
-				if (Menu *pMenu = get_menu_by_id(pPlayer->newmenu))
-				{
-					pMenu->Close(pPlayer->index);
+				pPlayer->menu = 0;
+				pPlayer->keys = 0;
 
-					RETURN_META(MRES_SUPERCEDE);
-				} 
-				else if (pPlayer->menu > 0 && !pPlayer->vgui)
-				{
-					pPlayer->menu = 0;
-					pPlayer->keys = 0;
-
-					RETURN_META(MRES_SUPERCEDE);
-				}
+				RETURN_META(MRES_SUPERCEDE);
 			}
 			
 			int menuid = pPlayer->menu;
@@ -1082,8 +957,10 @@ void C_ClientCommand(edict_t *pEntity)
 			{
 				int menu = pPlayer->newmenu;
 				pPlayer->newmenu = -1;
-				if (Menu *pMenu = get_menu_by_id(menu))
+
+				if (menu >= 0 && menu < (int)g_NewMenus.size() && g_NewMenus[menu])
 				{
+					Menu *pMenu = g_NewMenus[menu];
 					int item = pMenu->PagekeyToItem(pPlayer->page, pressed_key+1);
 					if (item == MENU_BACK)
 					{
@@ -1169,7 +1046,7 @@ void C_StartFrame_Post(void)
 						fn((*a)->index, auth);
 					}
 				}
-				executeForwards(FF_ClientAuthorized, static_cast<cell>((*a)->index), auth);
+				executeForwards(FF_ClientAuthorized, static_cast<cell>((*a)->index));
 				a.remove();
 				
 				continue;
@@ -1192,19 +1069,19 @@ void C_StartFrame_Post(void)
 			
 			int i = 0;
 #if defined(__linux__) || defined(__APPLE__)
-			mkdir(build_pathname("%s/memreports", get_localinfo("amxx_basedir", "addons/amxmodx")), 0700);
+			mkdir(build_pathname("%s/memreports", get_localinfo("ext_basedir", "addons/amxmodx")), 0700);
 #else
-			mkdir(build_pathname("%s/memreports", get_localinfo("amxx_basedir", "addons/amxmodx")));
+			mkdir(build_pathname("%s/memreports", get_localinfo("ext_basedir", "addons/amxmodx")));
 #endif
 			while (true)
 			{
 				char buffer[256];
-				sprintf(buffer, "%s/memreports/D%02d%02d%03d", get_localinfo("amxx_basedir", "addons/amxmodx"), curTime->tm_mon + 1, curTime->tm_mday, i);
+				sprintf(buffer, "%s/memreports/D%02d%02d%03d", get_localinfo("ext_basedir", "addons/amxmodx"), curTime->tm_mon + 1, curTime->tm_mday, i);
 #if defined(__linux__) || defined(__APPLE__)
-				mkdir(build_pathname("%s", g_log_dir.chars()), 0700);
+				mkdir(build_pathname("%s", g_log_dir.c_str()), 0700);
 				if (mkdir(build_pathname(buffer), 0700) < 0)
 #else
-				mkdir(build_pathname("%s", g_log_dir.chars()));
+				mkdir(build_pathname("%s", g_log_dir.c_str()));
 				if (mkdir(build_pathname(buffer)) < 0)
 #endif
 				{
@@ -1220,28 +1097,24 @@ void C_StartFrame_Post(void)
 						break;
 					}
 				}
-				g_memreport_dir = buffer;
+				g_memreport_dir.assign(buffer);
 				// g_memreport_dir should be valid now
 				break;
 			}
 		}
 		
-		m_dumpMemoryReport(build_pathname("%s/r%03d.txt", g_memreport_dir.chars(), g_memreport_count));
-		AMXXLOG_Log("Memreport #%d created (file \"%s/r%03d.txt\") (interval %f)", g_memreport_count + 1, g_memreport_dir.chars(), g_memreport_count, MEMREPORT_INTERVAL);
+		m_dumpMemoryReport(build_pathname("%s/r%03d.txt", g_memreport_dir.c_str(), g_memreport_count));
+		AMXXLOG_Log("Memreport #%d created (file \"%s/r%03d.txt\") (interval %f)", g_memreport_count + 1, g_memreport_dir.c_str(), g_memreport_count, MEMREPORT_INTERVAL);
 		
 		g_memreport_count++;
 	}
 #endif // MEMORY_TEST
-
-	g_frameActionMngr.ExecuteFrameCallbacks();
 
 	if (g_task_time > gpGlobals->time)
 		RETURN_META(MRES_IGNORED);
 
 	g_task_time = gpGlobals->time + 0.1f;
 	g_tasksMngr.startFrame();
-
-	CoreCfg.OnMapConfigTimer();
 
 	RETURN_META(MRES_IGNORED);
 }
@@ -1438,7 +1311,7 @@ void C_AlertMessage(ALERT_TYPE atype, const char *szFmt, ...)
 		RETURN_META(MRES_SUPERCEDE);
 	}
 
-	RETURN_META(MRES_IGNORED);
+    RETURN_META(MRES_IGNORED);
 }
 
 void C_ChangeLevel(const char *map, const char *what)
@@ -1545,11 +1418,10 @@ C_DLLEXPORT	int	Meta_Attach(PLUG_LOADTIME now, META_FUNCTIONS *pFunctionTable, m
 	CVAR_REGISTER(&init_amxmodx_modules);
 	CVAR_REGISTER(&init_amxmodx_debug);
 	CVAR_REGISTER(&init_amxmodx_mldebug);
-	CVAR_REGISTER(&init_amxmodx_language);
 	CVAR_REGISTER(&init_amxmodx_cl_langs);
 	
+	
 	amxmodx_version = CVAR_GET_POINTER(init_amxmodx_version.name);
-	amxmodx_language = CVAR_GET_POINTER(init_amxmodx_language.name);
 	
 	REG_SVR_COMMAND("amxx", amx_command);
 
@@ -1562,19 +1434,22 @@ C_DLLEXPORT	int	Meta_Attach(PLUG_LOADTIME now, META_FUNCTIONS *pFunctionTable, m
 		if (gameDir[i++] ==	'/')
 			a = &gameDir[i];
 	
-	g_mod_name = a;
+	g_mod_name.assign(a);
 
-	g_coloredmenus = ColoredMenus(g_mod_name.chars()); // whether or not to use colored menus
+	if (g_mod_name.compare("cstrike") == 0 || g_mod_name.compare("czero") == 0 || g_mod_name.compare("dod") == 0)
+		g_coloredmenus = true;
+	else
+		g_coloredmenus = false;
 
 	// ###### Print short GPL
-	print_srvconsole("\n   AMX Mod X version %s Copyright (c) 2004-2015 AMX Mod X Development Team \n"
-					 "   AMX Mod X comes with ABSOLUTELY NO WARRANTY; for details type `amxx gpl'.\n", AMXX_VERSION);
-	print_srvconsole("   This is free software and you are welcome to redistribute it under \n"
+	_print_console("\n   AMX Mod X version %s Copyright (c) 2004-2006 AMX Mod X Development Team \n"
+					 "   AMX Mod X comes with ABSOLUTELY NO WARRANTY; for details type `amxx gpl'.\n", SVN_VERSION_STRING);
+	_print_console("   This is free software and you are welcome to redistribute it under \n"
 					 "   certain conditions; type 'amxx gpl' for details.\n  \n");
 
 	// ###### Load custom path configuration
 	Vault amx_config;
-	amx_config.setSource(build_pathname("%s", get_localinfo("amxx_cfg", "addons/amxmodx/configs/core.ini")));
+	amx_config.setSource(build_pathname("%s", get_localinfo("ext_cfg", "extension/configs/core.ini")));
 
 	if (amx_config.loadVault())
 	{
@@ -1582,41 +1457,23 @@ C_DLLEXPORT	int	Meta_Attach(PLUG_LOADTIME now, META_FUNCTIONS *pFunctionTable, m
 		
 		while (a != amx_config.end())
 		{
-			SET_LOCALINFO((char*)a.key().chars(), (char*)a.value().chars());
+			SET_LOCALINFO((char*)a.key().c_str(), (char*)a.value().c_str());
 			++a;
 		}
 		amx_config.clear();
 	}
 
 	// ###### Initialize logging here
-	g_log_dir = get_localinfo("amxx_logs", "addons/amxmodx/logs");
-	g_log.SetLogType("amxx_logging");
+	g_log_dir.assign(get_localinfo("ext_logs", "extension/logs"));
 
 	// ###### Now attach metamod modules
 	// This will also call modules Meta_Query and Meta_Attach functions
-	loadModules(get_localinfo("amxx_modules", "addons/amxmodx/configs/modules.ini"), now);
+	loadModules(get_localinfo("ext_modules", "extension/configs/modules.ini"), now);
 
 	GET_HOOK_TABLES(PLID, &g_pEngTable, NULL, NULL);
 
 	FlagMan.SetFile("cmdaccess.ini");
-
-	ConfigManager.OnAmxxStartup();
-
-	g_CvarManager.CreateCvarHook();
-
-	void *address = nullptr;
-
-	if (CommonConfig && CommonConfig->GetMemSig("SV_DropClient", &address) && address)
-	{
-		DropClientDetour = DETOUR_CREATE_STATIC_FIXED(SV_DropClient, address);
-	}
-	else
-	{
-		AMXXLOG_Log("client_disconnected and client_remove forwards have been disabled - check your gamedata files.");
-	}
-
-	GET_IFACE<IFileSystem>("filesystem_stdio", g_FileSystem, FILESYSTEM_INTERFACE_VERSION);
-
+	
 	return (TRUE);
 }
 
@@ -1645,6 +1502,7 @@ C_DLLEXPORT	int	Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON	reason)
 	g_vault.clear();
 	g_xvars.clear();
 	g_plugins.clear();
+	g_cvars.clear();
 	g_langMngr.Clear();
 
 	ClearMessages();
@@ -1659,11 +1517,6 @@ C_DLLEXPORT	int	Meta_Detach(PLUG_LOADTIME now, PL_UNLOAD_REASON	reason)
 
 	ClearLibraries(LibSource_Plugin);
 	ClearLibraries(LibSource_Module);
-
-	if (DropClientDetour)
-	{
-		DropClientDetour->Destroy();
-	}
 
 	return (TRUE);
 }
@@ -1756,7 +1609,6 @@ C_DLLEXPORT	int	GetEntityAPI2(DLL_FUNCTIONS *pFunctionTable, int *interfaceVersi
 	gFunctionTable.pfnClientDisconnect = C_ClientDisconnect;
 	gFunctionTable.pfnInconsistentFile = C_InconsistentFile;
 	gFunctionTable.pfnServerActivate = C_ServerActivate;
-	gFunctionTable.pfnClientConnect = C_ClientConnect;
 
 	memcpy(pFunctionTable, &gFunctionTable, sizeof(DLL_FUNCTIONS));
 
@@ -1785,14 +1637,14 @@ C_DLLEXPORT	int	GetEngineFunctions(enginefuncs_t *pengfuncsFromEngine, int *inte
 {
 	memset(&meta_engfuncs, 0, sizeof(enginefuncs_t));
 
-	if (stricmp(g_mod_name.chars(), "cstrike") == 0 || stricmp(g_mod_name.chars(), "czero") == 0)
+	if (stricmp(g_mod_name.c_str(), "cstrike") == 0 || stricmp(g_mod_name.c_str(), "czero") == 0)
 	{
 		meta_engfuncs.pfnSetModel =	C_SetModel;
 		g_bmod_cstrike = true;
 	} else {
 		g_bmod_cstrike = false;
-		g_bmod_dod = !stricmp(g_mod_name.chars(), "dod");
-		g_bmod_tfc = !stricmp(g_mod_name.chars(), "tfc");
+		g_bmod_dod = !stricmp(g_mod_name.c_str(), "dod");
+		g_bmod_tfc = !stricmp(g_mod_name.c_str(), "tfc");
 	}
 
 	meta_engfuncs.pfnCmd_Argc = C_Cmd_Argc;

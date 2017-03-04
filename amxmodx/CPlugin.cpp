@@ -1,20 +1,42 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation, 
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve, 
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #include "amxmodx.h"
 #include "CPlugin.h"
 #include "CForward.h"
+#include "CFile.h"
 #include "amx.h"
 #include "natives.h"
 #include "debugger.h"
 #include "libraries.h"
-#include <amxmodx_version.h>
 
 extern const char *no_function;
 
@@ -76,11 +98,11 @@ int CPluginMngr::loadPluginsFromFile(const char* filename, bool warn)
 	// Find now folder
 	char pluginName[256], error[256], debug[256];
 	int debugFlag = 0;
-	const char *pluginsDir = get_localinfo("amxx_pluginsdir", "addons/amxmodx/plugins");
+	const char *pluginsDir = get_localinfo("ext_pluginsdir", "extension/plugins");
 	
-	char line[512];
+	String line;
 
-	List<ke::AString *>::iterator block_iter;
+	List<String *>::iterator block_iter;
 
 	while (!feof(fp)) 
 	{
@@ -89,11 +111,10 @@ int CPluginMngr::loadPluginsFromFile(const char* filename, bool warn)
 		debug[0] = '\0';
 		debugFlag = 0;
 		
-		line[0] = '\0';
-		fgets(line, sizeof(line), fp);
-
+		line.clear();
+		line._fread(fp);
 		/** quick hack */
-		char *ptr = line;
+		char *ptr = const_cast<char *>(line.c_str());
 		while (*ptr)
 		{
 			if (*ptr == ';')
@@ -103,7 +124,7 @@ int CPluginMngr::loadPluginsFromFile(const char* filename, bool warn)
 				ptr++;
 			}
 		}
-		sscanf(line, "%s %s", pluginName, debug);
+		sscanf(line.c_str(), "%s %s", pluginName, debug);
 		
 		if (!isalnum(*pluginName))
 		{
@@ -146,24 +167,6 @@ int CPluginMngr::loadPluginsFromFile(const char* filename, bool warn)
 			plugin->setError(errorMsg);
 			AMXXLOG_Error("[AMXX] %s", plugin->getError());
 		}
-		else
-		{
-			cell addr;
-			if (amx_FindPubVar(plugin->getAMX(), "MaxClients", &addr) != AMX_ERR_NOTFOUND)
-			{
-				*get_amxaddr(plugin->getAMX(), addr) = gpGlobals->maxClients;
-			}
-
-			if (amx_FindPubVar(plugin->getAMX(), "NULL_STRING", &addr) != AMX_ERR_NOTFOUND)
-			{
-				plugin->m_pNullStringOfs = get_amxaddr(plugin->getAMX(), addr);
-			}
-
-			if (amx_FindPubVar(plugin->getAMX(), "NULL_VECTOR", &addr) != AMX_ERR_NOTFOUND)
-			{
-				plugin->m_pNullVectorOfs = get_amxaddr(plugin->getAMX(), addr);
-			}
-		}
 	}
 
 	fclose(fp);
@@ -186,7 +189,7 @@ void CPluginMngr::clear()
 		pNatives = NULL;
 	}
 
-	List<ke::AString *>::iterator iter = m_BlockList.begin();
+	List<String *>::iterator iter = m_BlockList.begin();
 	while (iter != m_BlockList.end())
 	{
 		delete (*iter);
@@ -227,7 +230,7 @@ CPluginMngr::CPlugin* CPluginMngr::findPlugin(const char* name)
 	
 	CPlugin*a = head;
 	
-	while (a && strncmp(a->name.chars(), name, len))
+	while (a && strncmp(a->name.c_str(), name, len))
 		a = a->next;
 	
 	return a;
@@ -239,7 +242,7 @@ void CPluginMngr::CPlugin::AddToFailCounter(unsigned int i)
 	if ((failcounter >= 3)
 		&& (status ))
 	{
-		errorMsg = "This plugin is non-GPL which violates AMX Mod X's license.";
+		errorMsg.assign("This plugin is non-GPL which violates AMX Mod X's license.");
 		status = ps_bad_load;
 	}
 }
@@ -267,14 +270,14 @@ const char* CPluginMngr::CPlugin::getStatus() const
 	return "error";
 }
 
-CPluginMngr::CPlugin::CPlugin(int i, const char* p, const char* n, char* e, int d) : name(n), title(n), m_pNullStringOfs(nullptr), m_pNullVectorOfs(nullptr)
+CPluginMngr::CPlugin::CPlugin(int i, const char* p, const char* n, char* e, int d) : name(n), title(n)
 {
 	const char* unk = "unknown";
 	
 	failcounter = 0;
-	title = unk;
-	author = unk;
-	version = unk;
+	title.assign(unk);
+	author.assign(unk);
+	version.assign(unk);
 	
 	char file[256];
 	char* path = build_pathname_r(file, sizeof(file) - 1, "%s/%s", p, n);
@@ -383,7 +386,7 @@ void CPluginMngr::CPlugin::Finalize()
 			{
 				status = ps_bad_load;
 				sprintf(buffer, "Plugin uses an unknown function (name \"%s\") - check your modules.ini.", no_function);
-				errorMsg = buffer;
+				errorMsg.assign(buffer);
 				amx.error = AMX_ERR_NOTFOUND;
 			} else {
 				amx_RegisterToAny(&amx, invalid_native);
@@ -391,13 +394,13 @@ void CPluginMngr::CPlugin::Finalize()
 		}
 	} else {
 		status = ps_bad_load;
-		errorMsg = buffer;
+		errorMsg.assign(buffer);
 		amx.error = AMX_ERR_NOTFOUND;
 	}
 	
 	if (old_status != status)
 	{
-		AMXXLOG_Log("[AMXX] Plugin \"%s\" failed to load: %s", name.chars(), errorMsg.chars());
+		AMXXLOG_Log("[AMXX] Plugin \"%s\" failed to load: %s", name.c_str(), errorMsg.c_str());
 	}
 }
 
@@ -444,49 +447,6 @@ void CPluginMngr::CPlugin::unpausePlugin()
 	}
 }
 
-void CPluginMngr::CPlugin::AddConfig(bool create, const char *name, const char *folder)
-{
-	// Do a check for duplicates to prevent double-execution
-	for (size_t i = 0; i < m_configs.length(); ++i)
-	{
-		AutoConfig *config = m_configs[i];
-
-		if (config->autocfg.compare(name) == 0 && config->folder.compare(folder) == 0)
-		{
-			if (!config->create)
-			{
-				config->create = create;
-			}
-			return;
-		}
-	}
-
-	auto c = new AutoConfig;
-
-	c->autocfg = name;
-	c->folder = folder;
-	c->create = create;
-
-	m_configs.append(c);
-}
-
-size_t CPluginMngr::CPlugin::GetConfigCount()
-{
-	return m_configs.length();
-}
-
-AutoConfig *CPluginMngr::CPlugin::GetConfig(size_t i)
-{
-	if (i >= GetConfigCount())
-	{
-		return nullptr;
-	}
-
-	return m_configs[i];
-}
-
-
-
 char *CPluginMngr::ReadIntoOrFromCache(const char *file, size_t &bufsize)
 {
 	List<plcache_entry *>::iterator iter;
@@ -506,7 +466,8 @@ char *CPluginMngr::ReadIntoOrFromCache(const char *file, size_t &bufsize)
 
 	pl->file = new CAmxxReader(file, sizeof(cell));
 	pl->buffer = NULL;
-	if (pl->file->GetStatus() != CAmxxReader::Err_None)
+	if (pl->file->GetStatus() != CAmxxReader::Err_None ||
+		pl->file->IsOldFile())
 	{
 		delete pl->file;
 		delete pl;
@@ -528,7 +489,7 @@ char *CPluginMngr::ReadIntoOrFromCache(const char *file, size_t &bufsize)
 		return NULL;
 	}
 
-	pl->path = file;
+	pl->path.assign(file);
 
 	bufsize = pl->bufsize;
 
@@ -633,14 +594,14 @@ void CPluginMngr::CacheAndLoadModules(const char *plugin)
 		if (stricmp(name, "socket")==0)
 			strcpy(name, "sockets");
 		//we don't want to report failed modules here...
-		LoadModule(name, PT_ANYTIME, true, true);
+		LoadModule(name, true, true);
 	}
 
 	cell tag_id;
 	amx_NumTags(&amx, &num);
 
-	ke::Vector<LibDecoder *> expects;
-	ke::Vector<LibDecoder *> defaults;
+	CVector<LibDecoder *> expects;
+	CVector<LibDecoder *> defaults;
 	CStack<LibDecoder *> delstack;
 	for (int i=0; i<num; i++)
 	{
@@ -657,19 +618,19 @@ void CPluginMngr::CacheAndLoadModules(const char *plugin)
 				} else if ( (dc->cmd == LibCmd_ExpectClass) ||
 							(dc->cmd == LibCmd_ExpectLib) ) 
 				{
-					expects.append(dc);
+					expects.push_back(dc);
 				} else if (dc->cmd == LibCmd_DefaultLib) {
-					defaults.append(dc);
+					defaults.push_back(dc);
 				}
 			}
 		}
 	}
 
-	for (size_t i=0; i<expects.length(); i++)
+	for (size_t i=0; i<expects.size(); i++)
 	{
 		RunLibCommand(expects[i]);
 	}
-	for (size_t i=0; i<defaults.length(); i++)
+	for (size_t i=0; i<defaults.size(); i++)
 	{
 		RunLibCommand(defaults[i]);
 	}
@@ -699,7 +660,7 @@ void CPluginMngr::CALMFromFile(const char *file)
 	// Find now folder
 	char pluginName[256];
 	char line[256];
-	char rline[256];
+	String rline;
 
 	while (!feof(fp)) 
 	{
@@ -721,26 +682,24 @@ void CPluginMngr::CALMFromFile(const char *file)
 			}
 		}
 
-		strncopy(rline, line, sizeof(rline));
-		UTIL_TrimLeft(rline);
-		UTIL_TrimRight(rline);
-
+		rline.assign(line);
+		rline.trim();
 		pluginName[0] = '\0';
-		sscanf(rline, "%s", pluginName);
+		sscanf(rline.c_str(), "%s", pluginName);
 
 		/* HACK: see if there's a 'disabled' coming up
 		 * new block for scopying flexibility
 		 */
 		if (1)
 		{
-			const char *_ptr = rline + strlen(pluginName);
+			const char *_ptr = rline.c_str() + strlen(pluginName);
 			while (*_ptr != '\0'  && isspace(*_ptr))
 			{
 				_ptr++;
 			}
 			if ((*_ptr != '\0') && !strcmp(_ptr, "disabled"))
 			{
-				ke::AString *pString = new ke::AString(pluginName);
+				String *pString = new String(pluginName);
 				m_BlockList.push_back(pString);
 				continue;
 			}
@@ -751,7 +710,7 @@ void CPluginMngr::CALMFromFile(const char *file)
 			continue;
 		}
 
-		build_pathname_r(filename, sizeof(filename)-1, "%s/%s", get_localinfo("amxx_pluginsdir", "addons/amxmodx/plugins"), pluginName);
+		build_pathname_r(filename, sizeof(filename)-1, "%s/%s", get_localinfo("ext_pluginsdir", "extension/plugins"), pluginName);
 
 		CacheAndLoadModules(filename);
 	}

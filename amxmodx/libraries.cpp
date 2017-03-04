@@ -1,12 +1,3 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
-
 #include "libraries.h"
 #include "sh_list.h"
 
@@ -19,7 +10,7 @@ bool AddLibrary(const char *name, LibType type, LibSource src, void *parent)
 
 	Library *lib = new Library;
 
-	lib->name = name;
+	lib->name.assign(name);
 	lib->type = type;
 	lib->src = src;
 	lib->parent = parent;
@@ -97,7 +88,7 @@ size_t AddLibrariesFromString(const char *name, LibType type, LibSource src, voi
 	char *ptr, *p, s;
 	size_t count = 0;
 
-	ke::SafeSprintf(buffer, sizeof(buffer), "%s", name);
+	snprintf(buffer, sizeof(buffer)-1, "%s", name);
 
 	ptr = buffer;
 	p = buffer;
@@ -174,7 +165,7 @@ bool FindLibrary(const char *name, LibType type)
 		lib = (*iter);
 		if (lib->type != type)
 			continue;
-		if (strcasecmp(lib->name.chars(), name) == 0)
+		if (strcasecmp(lib->name.c_str(), name) == 0)
 		{
 			return true;
 		}
@@ -206,7 +197,7 @@ LibError RunLibCommand(const LibDecoder *enc)
 			lib = (*iter);
 			if (lib->type != expect)
 				continue;
-			if (strcasecmp(lib->name.chars(), enc->param1) == 0)
+			if (strcasecmp(lib->name.c_str(), enc->param1) == 0)
 				return LibErr_None;
 		}
 		if (expect == LibType_Library)
@@ -216,7 +207,7 @@ LibError RunLibCommand(const LibDecoder *enc)
 
 		return LibErr_NoLibrary;
 	} else if (enc->cmd == LibCmd_ForceLib) {
-		if (!LoadModule(enc->param1, PT_ANYTIME, true, true))
+		if (!LoadModule(enc->param1, true, true))
 		{
 			return LibErr_NoLibrary;
 		}
@@ -236,11 +227,11 @@ LibError RunLibCommand(const LibDecoder *enc)
 			lib = (*iter);
 			if (lib->type != expect)
 				continue;
-			if (strcasecmp(lib->name.chars(), enc->param1) == 0)
+			if (strcasecmp(lib->name.c_str(), enc->param1) == 0)
 				return LibErr_None;
 		}
 
-		if (!LoadModule(enc->param2, PT_ANYTIME, true, true))
+		if (!LoadModule(enc->param2, true, true))
 		{
 			return LibErr_NoLibrary;
 		}

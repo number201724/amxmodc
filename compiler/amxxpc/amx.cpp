@@ -17,6 +17,8 @@
  *  2.  Altered source versions must be plainly marked as such, and must not be
  *      misrepresented as being the original software.
  *  3.  This notice may not be removed or altered from any source distribution.
+ *
+ *  Version: $Id: amx.cpp 1728 2005-07-25 00:01:54Z dvander $
  */
 
 #if BUILD_PLATFORM == WINDOWS && BUILD_TYPE == RELEASE && BUILD_COMPILER == MSVC && PAWN_CELL_SIZE == 64
@@ -41,7 +43,7 @@
 #include <string.h>
 #include "osdefs.h"
 #if defined LINUX || defined __FreeBSD__ || defined __OpenBSD__ || defined __APPLE__
-  #include "sclinux.h"
+  #include <sclinux.h>
   #if !defined AMX_NODYNALOAD
     #include <dlfcn.h>
   #endif
@@ -773,7 +775,7 @@ static void expand(unsigned char *code, long codesize, long memsize)
     do {
       codesize--;
       /* no input byte should be shifted out completely */
-      assert(size_t(shift)<8*sizeof(cell));
+      assert(shift<8*sizeof(cell));
       /* we work from the end of a sequence backwards; the final code in
        * a sequence may not have the continuation bit set */
       assert(shift>0 || (code[(size_t)codesize] & 0x80)==0);

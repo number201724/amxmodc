@@ -1,11 +1,33 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation, 
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve, 
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #if defined(__linux__) || defined(__APPLE__)
 #if defined(__linux__)
@@ -18,19 +40,16 @@
 #endif
 
 #include "amxmodx.h"
-#include "osdep.h"			// sleep, etc
+//#include "osdep.h"			// sleep, etc
+#include "CFile.h"
 #include "amxxfile.h"
 #include "amxdbg.h"
-#include "newmenus.h"
 #include "natives.h"
 #include "debugger.h"
 #include "optimizer.h"
 #include "binlog.h"
 #include "libraries.h"
-#include "messages.h"
 #include "trie_natives.h"
-#include "CDataPack.h"
-#include "CGameConfigs.h"
 
 CList<CModule, const char*> g_modules;
 CList<CScript, AMX*> g_loadedscripts;
@@ -42,6 +61,30 @@ CModule *g_CurrentlyCalledModule = NULL;	// The module we are in at the moment; 
 ModuleCallReason g_ModuleCallReason;
 
 extern const char* no_function;				// stupid work around
+
+bool DirExists(const char *dir)
+{
+#if defined WIN32 || defined _WIN32
+	DWORD attr = GetFileAttributes(dir);
+	
+	if (attr == INVALID_FILE_ATTRIBUTES)
+		return false;
+	
+	if (attr & FILE_ATTRIBUTE_DIRECTORY)
+		return true;
+	
+#else
+	struct stat s;
+	
+	if (stat(dir, &s) != 0)
+		return false;
+	
+	if (S_ISDIR(s.st_mode))
+		return true;
+#endif
+
+	return false;
+}
 
 void report_error(int code, const char* fmt, ...)
 {
@@ -63,7 +106,7 @@ void report_error(int code, const char* fmt, ...)
 	}
 }
 
-void print_srvconsole(const char *fmt, ...)
+void _print_console(const char *fmt, ...)
 {
 	va_list argptr;
 	static char string[384];
@@ -71,8 +114,10 @@ void print_srvconsole(const char *fmt, ...)
 	vsnprintf(string, sizeof(string) - 1, fmt, argptr);
 	string[sizeof(string) - 1] = '\0';
 	va_end(argptr);
+
+	gEngfuncs.pfnConsolePrint(string);
 	
-	SERVER_PRINT(string);
+	//SERVER_PRINT(string);
 }
 
 void* alloc_amxmemory(void** p, int size)
@@ -124,6 +169,7 @@ int load_amxscript(AMX *amx, void **program, const char *filename, char error[64
 	*error = 0;
 	size_t bufSize;
 	*program = (void *)g_plugins.ReadIntoOrFromCache(filename, bufSize);
+	bool oldfile = false;
 	if (!*program)
 	{
 		CAmxxReader reader(filename, PAWN_CELL_SIZE / 8);
@@ -173,11 +219,12 @@ int load_amxscript(AMX *amx, void **program, const char *filename, char error[64
 				return (amx->error = AMX_ERR_NOTFOUND);
 			case CAmxxReader::Err_OldFile:
 				strcpy(error, "Plugin uses deprecated format. Update compiler");
-				return (amx->error = AMX_ERR_FORMAT);
 			default:
 				strcpy(error, "Unknown error");
 				return (amx->error = AMX_ERR_NOTFOUND);
 		}
+
+		oldfile = reader.IsOldFile();
 	} else {
 		g_plugins.InvalidateFileInCache(filename, false);
 	}
@@ -198,7 +245,7 @@ int load_amxscript(AMX *amx, void **program, const char *filename, char error[64
 	bool will_be_debugged = false;
 	tagAMX_DBG *pDbg = NULL;
 
-	if ((int)CVAR_GET_FLOAT("amx_debug") >= 2 || debug)
+	if ((int)gEngfuncs.pfnGetCvarFloat("amx_debug") >= 2 || debug)
 	{
 		if ((hdr->file_version < CUR_FILE_VERSION))
 		{
@@ -300,10 +347,10 @@ int load_amxscript(AMX *amx, void **program, const char *filename, char error[64
 #elif defined(__GNUC__)
 # if defined(__APPLE__)
 			amx->base = (unsigned char *)valloc(amx->code_size);
-			mprotect((void *)amx->base, amx->code_size, PROT_READ | PROT_WRITE | PROT_EXEC);
 # else
-			amx->base = (unsigned char *)mmap(nullptr, amx->code_size, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+			amx->base = (unsigned char *)memalign(sysconf(_SC_PAGESIZE), amx->code_size);
 # endif
+			mprotect((void *)amx->base, amx->code_size, PROT_READ|PROT_WRITE|PROT_EXEC);
 #endif
 			if (amx->base)
 				memcpy(amx->base, np, amx->code_size);
@@ -331,6 +378,17 @@ int load_amxscript(AMX *amx, void **program, const char *filename, char error[64
 		}
 	}
 #endif
+
+	if (oldfile)
+	{
+		amx->flags |= AMX_FLAG_OLDFILE;
+	} else {
+		cell addr;
+		if (amx_FindPubVar(amx, "__b_old_plugin", &addr) == AMX_ERR_NONE)
+		{
+			amx->flags |= AMX_FLAG_OLDFILE;
+		}
+	}
 
 	CScript* aa = new CScript(amx, *program, filename);
 
@@ -443,7 +501,7 @@ int CheckModules(AMX *amx, char error[128])
 		{
 			if (expect == LibType_Library)
 			{
-				if (!LoadModule(buffer, PT_ANYTIME, true, true))
+				if (!LoadModule(buffer, true, true))
 				{
 					if (pHandler->HandleModule(buffer, (expect == LibType_Class)))
 						found = true;
@@ -501,37 +559,35 @@ int set_amxnatives(AMX* amx, char error[128])
 	for (CList<CModule, const char *>::iterator a = g_modules.begin(); a ; ++a)
 	{
 		cm = &(*a);
-		for (size_t i=0; i<cm->m_Natives.length(); i++)
+		for (size_t i=0; i<cm->m_Natives.size(); i++)
 		{
 			amx_Register(amx, cm->m_Natives[i], -1);
 		}
 
-		for (size_t i = 0; i < cm->m_NewNatives.length(); i++)
+		for (size_t i = 0; i < cm->m_NewNatives.size(); i++)
 		{
-			amx_Register(amx, cm->m_NewNatives[i], -1);
+			if (!(amx->flags & AMX_FLAG_OLDFILE))
+				amx_Register(amx, cm->m_NewNatives[i], -1);
 		}
 	}
 
 	amx_Register(amx, string_Natives, -1);
 	amx_Register(amx, float_Natives, -1);
 	amx_Register(amx, file_Natives, -1);
-	amx_Register(amx, amxmodx_Natives, -1);
 	amx_Register(amx, power_Natives, -1);
 	amx_Register(amx, time_Natives, -1);
-	amx_Register(amx, vault_Natives, -1);
-	amx_Register(amx, g_NewMenuNatives, -1);
-	amx_Register(amx, g_NativeNatives, -1);
-	amx_Register(amx, g_DebugNatives, -1);
-	amx_Register(amx, msg_Natives, -1);
 	amx_Register(amx, vector_Natives, -1);
 	amx_Register(amx, g_SortNatives, -1);
+	amx_Register(amx, g_NativeNatives, -1);
 	amx_Register(amx, g_DataStructNatives, -1);
 	amx_Register(amx, trie_Natives, -1);
-	amx_Register(amx, g_DatapackNatives, -1);
-	amx_Register(amx, g_StackNatives, -1);
-	amx_Register(amx, g_TextParserNatives, -1);
-	amx_Register(amx, g_CvarNatives, -1);
-	amx_Register(amx, g_GameConfigNatives, -1);
+
+	amx_Register(amx, amxmodx_Natives, -1);
+	amx_Register(amx, vault_Natives, -1);
+	amx_Register(amx, g_DebugNatives, -1);
+
+	
+
 
 	//we're not actually gonna check these here anymore
 	amx->flags |= AMX_FLAG_PRENIT;
@@ -560,9 +616,8 @@ int set_amxnatives(AMX* amx, char error[128])
 
 int unload_amxscript(AMX* amx, void** program)
 {	
-#if defined JIT
+#if !defined AMD64
 	int flags = amx->flags;
-	long code_size = amx->code_size;
 #endif
 
 	Debugger *pDebugger = (Debugger *)amx->userdata[UD_DEBUGGER];
@@ -593,16 +648,12 @@ int unload_amxscript(AMX* amx, void** program)
 	{
 		delete [] prg;
 	} else {
-#ifdef __linux__
-		munmap(prg, code_size);
-#else
 #ifdef free
 #undef free
 		free(prg);
 #define free(ptr)	m_deallocator(__FILE__, __LINE__, __FUNCTION__, m_alloc_free, ptr)
 #else
 		free(prg);
-#endif
 #endif
 	}
 #elif defined WIN32
@@ -668,15 +719,16 @@ const char* get_amxscriptname(AMX* amx)
 
 void get_modname(char* buffer)
 {
-	strcpy(buffer, g_mod_name.chars());
+	strcpy(buffer, g_mod_name.c_str());
 }
 
 char* build_pathname(const char *fmt, ...)
 {
 	static char string[256];
 	int b;
-	int a = b = ke::SafeSprintf(string, sizeof(string), "%s%c", g_mod_name.chars(), PATH_SEP_CHAR);
-
+	int a = b = 0;
+	//snprintf(string, 255, "%s%c", g_mod_name.c_str(), PATH_SEP_CHAR);
+	strcpy(string,"");
 	va_list argptr;
 	va_start(argptr, fmt);
 	a += vsnprintf (&string[a], 255 - a, fmt, argptr);
@@ -699,7 +751,8 @@ char* build_pathname(const char *fmt, ...)
 
 char *build_pathname_r(char *buffer, size_t maxlen, const char *fmt, ...)
 {
-	ke::SafeSprintf(buffer, maxlen, "%s%c", g_mod_name.chars(), PATH_SEP_CHAR);
+	strcpy(buffer, "");
+	//snprintf(buffer, maxlen, "%s%c", g_mod_name.c_str(), PATH_SEP_CHAR);
 
 	size_t len = strlen(buffer);
 	char *ptr = buffer + len;
@@ -745,17 +798,17 @@ char* build_pathname_addons(const char *fmt, ...)
 	return string;
 }
 
-bool ConvertModuleName(const char *pathString, char *path)
+bool ConvertModuleName(const char *pathString, String &path)
 {
-	char local[PLATFORM_MAX_PATH];
+	String local;
 
-	strncopy(local, pathString, sizeof(local));
-	char *tmpname = local;
+	local.assign(pathString);
+	char *tmpname = const_cast<char *>(local.c_str());
 	char *orig_path = tmpname;
 
-	*path = '\0';
+	path.clear();
 
-	size_t len = strlen(local);
+	size_t len = local.size();
 	if (!len)
 		return false;
 
@@ -780,7 +833,7 @@ bool ConvertModuleName(const char *pathString, char *path)
 		if (strncmp(ptr, "_amxx", 5) == 0)
 		{
 			char *p = ptr + 5;
-			if (strncmp(p, ".dll", 4) == 0 || strncmp(p, ".dylib", 6) == 0)
+			if (strncmp(p, ".dll", 4) == 0)
 			{
 				foundAmxx = true;
 				break;
@@ -822,30 +875,40 @@ bool ConvertModuleName(const char *pathString, char *path)
 		*ptr = '\0';
 	}
 
-	size_t length = ke::SafeSprintf(path, PLATFORM_MAX_PATH, "%s%c%s_amxx", orig_path, PATH_SEP_CHAR, tmpname);
-
-#if defined PLATFORM_LINUX
-# if defined AMD64 || PAWN_CELL_SIZE == 64
-	length += strncopy(path + length, "_amd64", PLATFORM_MAX_PATH - length);
-# else
-	length += ke::SafeSprintf(path + length, PLATFORM_MAX_PATH - length, "_i%c86", iDigit);
-# endif
+	path.assign(orig_path);
+	path.append(PATH_SEP_CHAR);
+	path.append(tmpname);
+	path.append("_amxx");
+#if defined(__linux__) || defined(__APPLE__)
+ #if defined AMD64 || PAWN_CELL_SIZE==64
+	path.append("_amd64");
+ #else
+	path.append("_i");
+	path.append(iDigit);
+	path.append("86");
+ #endif
 #endif
-	ke::SafeSprintf(path + length, PLATFORM_MAX_PATH - length, ".%s", PLATFORM_LIB_EXT);
+#if defined WIN32
+	path.append(".dll");
+#elif defined __linux__
+	path.append(".so");
+#elif defined __APPLE__
+	path.append(".dylib");
+#endif
 
 	return true;
 }
 
-bool LoadModule(const char *shortname, PLUG_LOADTIME now, bool simplify, bool noFileBail)
+bool LoadModule(const char *shortname, bool simplify, bool noFileBail)
 {
-	char pathString[PLATFORM_MAX_PATH];
-	char path[PLATFORM_MAX_PATH];
+	char pathString[512];
+	String path;
 
 	build_pathname_r(
 		pathString, 
 		sizeof(pathString)-1, 
 		"%s/%s",
-		get_localinfo("amxx_modulesdir", "addons/amxmodx/modules"),
+		get_localinfo("ext_modulesdir", "extension/modules"),
 		shortname);
 
 	if (simplify)
@@ -853,23 +916,23 @@ bool LoadModule(const char *shortname, PLUG_LOADTIME now, bool simplify, bool no
 		if (!ConvertModuleName(pathString, path))
 			return false;
 	} else {
-		strncopy(path, pathString, sizeof(path));
+		path.assign(pathString);
 	}
 
 	if (noFileBail)
 	{
-		FILE *fp = fopen(path, "rb");
+		FILE *fp = fopen(path.c_str(), "rb");
 		if (!fp)
 			return false;
 		fclose(fp);
 	}
 
-	CList<CModule, const char *>::iterator a = g_modules.find(path);
+	CList<CModule, const char *>::iterator a = g_modules.find(path.c_str());
 
 	if (a)
 		return false;
 
-	CModule* cc = new CModule(path);
+	CModule* cc = new CModule(path.c_str());
 
 	cc->queryModule();
 
@@ -878,31 +941,31 @@ bool LoadModule(const char *shortname, PLUG_LOADTIME now, bool simplify, bool no
 	switch (cc->getStatusValue())
 	{
 	case MODULE_BADLOAD:
-		report_error(1, "[AMXX] Module is not a valid library (file \"%s\")", path);
+		report_error(1, "[AMXX] Module is not a valid library (file \"%s\")", path.c_str());
 		break;
 	case MODULE_NOINFO:
-		report_error(1, "[AMXX] Couldn't find info about module (file \"%s\")", path);
+		report_error(1, "[AMXX] Couldn't find info about module (file \"%s\")", path.c_str());
 		break;
 	case MODULE_NOQUERY:
-		report_error(1, "[AMXX] Couldn't find \"AMX_Query\" or \"AMXX_Query\" (file \"%s\")", path);
+		report_error(1, "[AMXX] Couldn't find \"AMX_Query\" or \"AMXX_Query\" (file \"%s\")", path.c_str());
 		break;
 	case MODULE_NOATTACH:
-		report_error(1, "[AMXX] Couldn't find \"%s\" (file \"%s\")", cc->isAmxx() ? "AMXX_Attach" : "AMX_Attach", path);
+		report_error(1, "[AMXX] Couldn't find \"%s\" (file \"%s\")", cc->isAmxx() ? "AMXX_Attach" : "AMX_Attach", path.c_str());
 		break;
 	case MODULE_OLD:
-		report_error(1, "[AMXX] Module has a different interface version (file \"%s\")", path);
+		report_error(1, "[AMXX] Module has a different interface version (file \"%s\")", path.c_str());
 		break;
 	case MODULE_NEWER:
-		report_error(1, "[AMXX] Module has a newer interface version (file \"%s\"). Please download a new amxmodx.", path);
+		report_error(1, "[AMXX] Module has a newer interface version (file \"%s\"). Please download a new amxmodx.", path.c_str());
 		break;
 	case MODULE_INTERROR:
-		report_error(1, "[AMXX] Internal error during module load (file \"%s\")", path);
+		report_error(1, "[AMXX] Internal error during module load (file \"%s\")", path.c_str());
 		break;
 	case MODULE_NOT64BIT:
-		report_error(1, "[AMXX] Module \"%s\" is not 64 bit compatible.", path);
+		report_error(1, "[AMXX] Module \"%s\" is not 64 bit compatible.", path.c_str());
 		break;
 	case MODULE_BADGAME:
-		report_error(1, "[AMXX] Module \"%s\" cannot load on game \"%s\"", path, g_mod_name.chars());
+		report_error(1, "[AMXX] Module \"%s\" cannot load on game \"%s\"", path.c_str(), g_mod_name.c_str());
 		break;
 	default:
 		error = false;
@@ -916,16 +979,6 @@ bool LoadModule(const char *shortname, PLUG_LOADTIME now, bool simplify, bool no
 		return false;
 	}
 
-	if (cc->IsMetamod())
-	{
-		char *mmpathname = build_pathname_addons(
-							"%s/%s", 
-							get_localinfo("amxx_modulesdir", "addons/amxmodx/modules"), 
-							shortname);
-		ConvertModuleName(mmpathname, path);
-		cc->attachMetamod(path, now);
-	}
-
 	bool retVal = cc->attachModule();
 
 	if (cc->isAmxx() && !retVal)
@@ -933,7 +986,7 @@ bool LoadModule(const char *shortname, PLUG_LOADTIME now, bool simplify, bool no
 		switch (cc->getStatusValue())
 		{
 		case MODULE_FUNCNOTPRESENT:
-			report_error(1, "[AMXX] Module requested a not existing function (file \"%s\")%s%s%s", cc->getFilename(), cc->getMissingFunc() ? " (func \"" : "", 
+			report_error(1, "[AMXX] Module requested a not exisitng function (file \"%s\")%s%s%s", cc->getFilename(), cc->getMissingFunc() ? " (func \"" : "", 
 				cc->getMissingFunc() ? cc->getMissingFunc() : "", cc->getMissingFunc() ? "\")" : "");
 			break;
 		case MODULE_INTERROR:
@@ -950,7 +1003,7 @@ bool LoadModule(const char *shortname, PLUG_LOADTIME now, bool simplify, bool no
 	return true;
 }
 
-int loadModules(const char* filename, PLUG_LOADTIME now)
+int loadModules(const char* filename)
 {
 	FILE *fp = fopen(build_pathname("%s", filename), "rt");
 
@@ -960,40 +1013,38 @@ int loadModules(const char* filename, PLUG_LOADTIME now)
 		return 0;
 	}
 
-	char line[256];
+	String line;
 	char moduleName[256];
 	char buffer[255];
 	int loaded = 0;
+
+	String path;
 
 	while (!feof(fp))
 	{
 		buffer[0] = '\0';
 		fgets(buffer, sizeof(buffer)-1, fp);
 
-		UTIL_TrimLeft(buffer);
-		UTIL_TrimRight(buffer);
-
-		if (!buffer[0] || buffer[0] == ';' || buffer[0] == '\n')
+		if (buffer[0] == ';' || buffer[0] == '\n')
 			continue;
 
 		bool simplify = true;
-
 		if (buffer[0] == '>')
 		{
 			simplify = false;
-			strncopy(line, &buffer[1], sizeof(line));
-		} 
-		else 
-		{
-			strncopy(line, buffer, sizeof(line));
+			line.assign(&buffer[1]);
+		} else {
+			line.assign(buffer);
 		}
-
-		*moduleName = '\0';
 		
-		if (sscanf(line, "%s", moduleName) == EOF)
+		line.trim();
+
+		*moduleName = 0;
+		
+		if (sscanf(line.c_str(), "%s", moduleName) == EOF)
 			continue;
 		
-		if (LoadModule(moduleName, now, simplify))
+		if (LoadModule(moduleName, simplify))
 			loaded++;
 	}
 
@@ -1019,7 +1070,7 @@ void detachReloadModules()
 
 	while (a)
 	{
-		if ((*a).isReloadable() && !(*a).IsMetamod())
+		if ((*a).isReloadable())
 		{
 			(*a).detachModule();
 			a.remove();
@@ -1127,7 +1178,7 @@ int MNF_AddNatives(AMX_NATIVE_INFO* natives)
 	if (!g_CurrentlyCalledModule || g_ModuleCallReason != ModuleCall_Attach)
 		return FALSE;				// may only be called from attach
 
-	g_CurrentlyCalledModule->m_Natives.append(natives);
+	g_CurrentlyCalledModule->m_Natives.push_back(natives);
 	
 	return TRUE;
 }
@@ -1137,14 +1188,21 @@ int MNF_AddNewNatives(AMX_NATIVE_INFO *natives)
 	if (!g_CurrentlyCalledModule || g_ModuleCallReason != ModuleCall_Attach)
 		return FALSE;				// may only be called from attach
 
-	g_CurrentlyCalledModule->m_NewNatives.append(natives);
+	g_CurrentlyCalledModule->m_NewNatives.push_back(natives);
 
 	return TRUE;
 }
 
 const char *MNF_GetModname(void)
 {
-	return g_mod_name.chars();
+	// :TODO: Do we have to do this?? 
+	// I dunno who wrote the above comment but no
+#if 0
+	static char buffer[64];
+	strcpy(buffer, g_mod_name.c_str());
+	return buffer;
+#endif
+	return g_mod_name.c_str();
 }
 
 AMX *MNF_GetAmxScript(int id)
@@ -1231,17 +1289,6 @@ extern "C" char *MNF_GetAmxString(AMX *amx, cell amx_addr, int bufferId, int *pL
 	return retVal;
 }
 
-extern "C" char *MNF_GetAmxStringNull(AMX *amx, cell amx_addr, int bufferId, int *pLen)
-{
-	int len;
-	char *retVal = get_amxstring_null(amx, amx_addr, bufferId, len);
-
-	if (pLen && retVal)
-		*pLen = len;
-
-	return retVal;
-}
-
 int MNF_GetAmxStringLen(const cell *ptr)
 {
 	register int c = 0;
@@ -1274,38 +1321,12 @@ char *MNF_FormatAmxString(AMX *amx, cell *params, int startParam, int *pLen)
 	return retVal;
 }
 
-int MNF_GetPlayerFlags(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	CPlayer *pPlayer = GET_PLAYER_POINTER_I(id);
-	
-	return (pPlayer->flags[0]);
-}
 
 void MNF_CopyAmxMemory(cell * dest, const cell * src, int len)
 {
 	memcpy((void*)dest, (const void *)src, (size_t)len * sizeof(cell));
 }
 
-int MNF_IsPlayerValid(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	CPlayer *pPlayer = GET_PLAYER_POINTER_I(id);
-	
-	return (pPlayer->initialized) ? 1 : 0;
-}
-
-const char * MNF_GetPlayerName(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return NULL;
-	
-	return GET_PLAYER_POINTER_I(id)->name.chars();
-}
 
 void MNF_OverrideNatives(AMX_NATIVE_INFO *natives, const char *name)
 {
@@ -1323,144 +1344,6 @@ void MNF_OverrideNatives(AMX_NATIVE_INFO *natives, const char *name)
 			continue;
 		cm.rewriteNativeLists(natives);
 	}
-}
-
-const char * MNF_GetPlayerIP(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return NULL;
-	
-	return GET_PLAYER_POINTER_I(id)->ip.chars();
-}
-
-int MNF_IsPlayerInGame(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return GET_PLAYER_POINTER_I(id)->ingame ? 1 : 0;
-}
-
-int MNF_IsPlayerBot(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return GET_PLAYER_POINTER_I(id)->IsBot() ? 1 : 0;
-}
-
-int MNF_IsPlayerAuthorized(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return GET_PLAYER_POINTER_I(id)->authorized ? 1 : 0;
-}
-
-float MNF_GetPlayerTime(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0.0f;
-	
-	return GET_PLAYER_POINTER_I(id)->time;
-}
-
-float MNF_GetPlayerPlayTime(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0.0f;
-	
-	return GET_PLAYER_POINTER_I(id)->playtime;
-}
-
-int MNF_GetPlayerCurweapon(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return GET_PLAYER_POINTER_I(id)->current;
-}
-
-int MNF_GetPlayerTeamID(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return GET_PLAYER_POINTER_I(id)->teamId;
-}
-
-int MNF_GetPlayerDeaths(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return GET_PLAYER_POINTER_I(id)->deaths;
-}
-
-int MNF_GetPlayerMenu(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return GET_PLAYER_POINTER_I(id)->menu;
-}
-
-int MNF_GetPlayerKeys(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return GET_PLAYER_POINTER_I(id)->keys;
-}
-
-int MNF_IsPlayerAlive(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return GET_PLAYER_POINTER_I(id)->IsAlive() ? 1 : 0;
-}
-
-float MNF_GetPlayerFrags(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0.0f;
-	
-	return GET_PLAYER_POINTER_I(id)->pEdict->v.frags;
-}
-
-int MNF_IsPlayerConnecting(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	CPlayer * pPlayer = GET_PLAYER_POINTER_I(id);
-	
-	return (!pPlayer->ingame && pPlayer->initialized && (GETPLAYERUSERID(pPlayer->pEdict) > 0)) ? 1 : 0;
-}
-
-int MNF_IsPlayerHLTV(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return (GET_PLAYER_POINTER_I(id)->pEdict->v.flags & FL_PROXY) ? 1 : 0;
-}
-
-float MNF_GetPlayerArmor(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0.0f;
-	
-	return (GET_PLAYER_POINTER_I(id)->pEdict->v.armorvalue);
-}
-
-float MNF_GetPlayerHealth(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return 0;
-	
-	return (GET_PLAYER_POINTER_I(id)->pEdict->v.health);
 }
 
 cell MNF_RealToCell(REAL x)
@@ -1568,7 +1451,7 @@ extern "C" void LogError(AMX *amx, int err, const char *fmt, ...)
 
 void MNF_MergeDefinitionFile(const char *file)
 {
-	g_langMngr.MergeDefinitionFile(file);
+	
 }
 
 int MNF_FindLibrary(const char *name, LibType type)
@@ -1586,25 +1469,9 @@ size_t MNF_RemoveLibraries(void *parent)
 	return RemoveLibraries(parent);
 }
 
-edict_t* MNF_GetPlayerEdict(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return NULL;
-	
-	return (GET_PLAYER_POINTER_I(id)->pEdict);
-}
-
 const char *MNF_Format(const char *fmt, ...)
 {
 	return "";
-}
-
-const char *MNF_GetPlayerTeam(int id)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return NULL;
-
-	return (GET_PLAYER_POINTER_I(id)->team.chars());
 }
 
 #ifndef MEMORY_TEST
@@ -1688,123 +1555,16 @@ void Module_UncacheFunctions()
 	g_functions.clear();
 }
 
-int MNF_SetPlayerTeamInfo(int player, int teamid, const char *teamname)
-{
-	if (player < 1 || player > gpGlobals->maxClients)
-		return 0;
-
-	CPlayer *pPlayer = GET_PLAYER_POINTER_I(player);
-
-	if (!pPlayer->ingame)
-		return 0;
-
-	pPlayer->teamId = teamid;
-	if (teamname != NULL)
-	{
-		pPlayer->team = teamname;
-
-		// Make sure team is registered, otherwise
-		// natives relying on team id will return wrong result.
-		g_teamsIds.registerTeam(teamname, teamid);
-	}
-
-	return 1;
-}
 
 const char *MNF_GetLocalInfo(char *name, const char *def)
 {
 	return get_localinfo(name, def);
 }
 
-void MNF_MessageBlock(int mode, int msg, int *opt)
-{
-	switch (mode)
-	{
-	case MSGBLOCK_SET:
-		{
-			if (msg < 0 || msg > MAX_MESSAGES || opt == NULL)
-			{
-				return;
-			}
-			int _opt = msgBlocks[msg];
-			msgBlocks[msg] = *opt;
-			*opt = _opt;
-			break;
-		}
-	case MSGBLOCK_GET:
-		{
-			if (msg < 0 || msg > MAX_MESSAGES || opt == NULL)
-			{
-				return;
-			}
-			*opt = msgBlocks[msg];
-			break;
-		}
-	}
-}
-
-void *MNF_PlayerPropAddr(int id, int prop)
-{
-	if (id < 1 || id > gpGlobals->maxClients)
-		return NULL;
-
-	CPlayer *pPlayer = GET_PLAYER_POINTER_I(id);
-
-	switch (prop)
-	{
-	case Player_Name:
-		return &pPlayer->name;
-	case Player_Ip:
-		return &pPlayer->ip;
-	case Player_Team:
-		return &pPlayer->team;
-	case Player_Ingame:
-		return &pPlayer->ingame;
-	case Player_Authorized:
-		return &pPlayer->authorized;
-	case Player_Vgui:
-		return &pPlayer->vgui;
-	case Player_Time:
-		return &pPlayer->time;
-	case Player_Playtime:
-		return &pPlayer->playtime;
-	case Player_MenuExpire:
-		return &pPlayer->menuexpire;
-	case Player_Weapons:
-		return &pPlayer->weapons[0];
-	case Player_CurrentWeapon:
-		return &pPlayer->current;
-	case Player_TeamID:
-		return &pPlayer->teamId;
-	case Player_Deaths:
-		return &pPlayer->deaths;
-	case Player_Aiming:
-		return &pPlayer->aiming;
-	case Player_Menu:
-		return &pPlayer->menu;
-	case Player_Keys:
-		return &pPlayer->keys;
-	case Player_Flags:
-		return &pPlayer->flags[0];
-	case Player_Newmenu:
-		return &pPlayer->newmenu;
-	case Player_NewmenuPage:
-		return &pPlayer->page;
-	default:
-		return NULL;
-	}
-
-	return NULL;
-}
 
 int amx_Execv()
 {
 	return AMX_ERR_NOTFOUND;
-}
-
-IGameConfigManager *MNF_GetConfigManager()
-{
-	return &ConfigManager;
 }
 
 void Module_CacheFunctions()
@@ -1813,7 +1573,7 @@ void Module_CacheFunctions()
 
 	REGISTER_FUNC("BuildPathname", build_pathname)
 	REGISTER_FUNC("BuildPathnameR", build_pathname_r)
-	REGISTER_FUNC("PrintSrvConsole", print_srvconsole)
+	REGISTER_FUNC("PrintSrvConsole", _print_console)
 	REGISTER_FUNC("GetModname", MNF_GetModname)
 	REGISTER_FUNC("Log", MNF_Log)
 	REGISTER_FUNC("LogError", LogError)
@@ -1821,7 +1581,6 @@ void Module_CacheFunctions()
 	REGISTER_FUNC("Format", MNF_Format)
 	REGISTER_FUNC("RegisterFunction", MNF_RegisterFunction);
 	REGISTER_FUNC("RegisterFunctionEx", MNF_RegisterFunctionEx);
-	REGISTER_FUNC("GetConfigManager", MNF_GetConfigManager);
 
 	// Amx scripts loading / unloading / managing
 	REGISTER_FUNC("GetAmxScript", MNF_GetAmxScript)
@@ -1833,15 +1592,11 @@ void Module_CacheFunctions()
 
 	// String / mem in amx scripts support
 	REGISTER_FUNC("SetAmxString", set_amxstring)
-	REGISTER_FUNC("SetAmxStringUTF8Char", set_amxstring_utf8_char)
-	REGISTER_FUNC("SetAmxStringUTF8Cell", set_amxstring_utf8_cell)
 	REGISTER_FUNC("GetAmxString", MNF_GetAmxString)
-	REGISTER_FUNC("GetAmxStringNull", MNF_GetAmxStringNull)
 	REGISTER_FUNC("GetAmxStringLen", MNF_GetAmxStringLen)
 	REGISTER_FUNC("FormatAmxString", MNF_FormatAmxString)
 	REGISTER_FUNC("CopyAmxMemory", MNF_CopyAmxMemory)
 	REGISTER_FUNC("GetAmxAddr", get_amxaddr)
-	REGISTER_FUNC("GetAmxVectorNull", get_amxvector_null)
 	REGISTER_FUNC("AmxReregister", amx_Reregister);
 
 	// other amx stuff
@@ -1867,32 +1622,8 @@ void Module_CacheFunctions()
 	REGISTER_FUNC("PrepareCharArrayA", prepareCharArray)
 
 	// Player
-	REGISTER_FUNC("GetPlayerFlags", MNF_GetPlayerFlags)
-	REGISTER_FUNC("IsPlayerValid", MNF_IsPlayerValid)
-	REGISTER_FUNC("GetPlayerName", MNF_GetPlayerName)
-	REGISTER_FUNC("GetPlayerIP", MNF_GetPlayerIP)
-	REGISTER_FUNC("IsPlayerInGame", MNF_IsPlayerInGame)
-	REGISTER_FUNC("IsPlayerBot", MNF_IsPlayerBot)
-	REGISTER_FUNC("IsPlayerAuthorized", MNF_IsPlayerAuthorized)
-	REGISTER_FUNC("GetPlayerTime", MNF_GetPlayerTime)
-	REGISTER_FUNC("GetPlayerPlayTime", MNF_GetPlayerPlayTime)
-	REGISTER_FUNC("GetPlayerCurweapon", MNF_GetPlayerCurweapon)
-	REGISTER_FUNC("GetPlayerTeamID", MNF_GetPlayerTeamID)
-	REGISTER_FUNC("GetPlayerTeam", MNF_GetPlayerTeam)
-	REGISTER_FUNC("GetPlayerDeaths", MNF_GetPlayerDeaths)
-	REGISTER_FUNC("GetPlayerFrags", MNF_GetPlayerFrags)
-	REGISTER_FUNC("GetPlayerMenu", MNF_GetPlayerMenu)
-	REGISTER_FUNC("GetPlayerKeys", MNF_GetPlayerKeys)
-	REGISTER_FUNC("IsPlayerAlive", MNF_IsPlayerAlive)
-	REGISTER_FUNC("IsPlayerConnecting", MNF_IsPlayerConnecting)
-	REGISTER_FUNC("IsPlayerHLTV", MNF_IsPlayerHLTV)
-	REGISTER_FUNC("GetPlayerArmor", MNF_GetPlayerArmor)
-	REGISTER_FUNC("GetPlayerHealth", MNF_GetPlayerHealth)
-	REGISTER_FUNC("GetPlayerEdict", MNF_GetPlayerEdict)
 	REGISTER_FUNC("CellToReal", MNF_CellToReal)
 	REGISTER_FUNC("RealToCell", MNF_RealToCell)
-	REGISTER_FUNC("SetPlayerTeamInfo", MNF_SetPlayerTeamInfo)
-	REGISTER_FUNC("PlayerPropAddr", MNF_PlayerPropAddr)
 
 	REGISTER_FUNC("RegAuthFunc", MNF_RegAuthorizeFunc);
 	REGISTER_FUNC("UnregAuthFunc", MNF_UnregAuthorizeFunc);
@@ -1902,8 +1633,6 @@ void Module_CacheFunctions()
 	REGISTER_FUNC("RemoveLibraries", MNF_RemoveLibraries);
 	REGISTER_FUNC("OverrideNatives", MNF_OverrideNatives);
 	REGISTER_FUNC("GetLocalInfo", MNF_GetLocalInfo);
-
-	REGISTER_FUNC("MessageBlock", MNF_MessageBlock);
 
 #ifdef MEMORY_TEST
 	REGISTER_FUNC("Allocator", m_allocator)

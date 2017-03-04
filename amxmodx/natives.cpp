@@ -1,11 +1,32 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X 
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #include "amxmodx.h"
 #include "sh_stack.h"
@@ -28,19 +49,19 @@
 //With the exception for param_convert, which was written by
 // Julien "dJeyL" Laurent
 
-ke::Vector<regnative *> g_RegNatives;
+CVector<regnative *> g_RegNatives;
 static char g_errorStr[512] = {0};
 bool g_Initialized = false;
 
 /* Stack stuff */
 regnative *g_pCurNative = NULL;
 AMX *g_pCaller = NULL;
-cell g_Params[CALLFUNC_MAXPARAMS + 1];
+cell g_Params[CALLFUNC_MAXPARAMS];
 int g_CurError = AMX_ERR_NONE;
 
 int amxx_DynaCallback(int idx, AMX *amx, cell *params)
 {
-	if (idx < 0 || idx >= (int)g_RegNatives.length())
+	if (idx < 0 || idx >= (int)g_RegNatives.size())
 	{
 		LogError(amx, AMX_ERR_NATIVE, "Invalid dynamic native called");
 		return 0;
@@ -152,24 +173,24 @@ int amxx_DynaCallback(int idx, AMX *amx, cell *params)
 
 AMX_NATIVE_INFO *BuildNativeTable()
 {
-	if (g_RegNatives.length() < 1)
+	if (g_RegNatives.size() < 1)
 	{
 		return NULL;
 	}
 
-	AMX_NATIVE_INFO *pNatives = new AMX_NATIVE_INFO[g_RegNatives.length() + 1];
+	AMX_NATIVE_INFO *pNatives = new AMX_NATIVE_INFO[g_RegNatives.size() + 1];
 
 	AMX_NATIVE_INFO info;
 	regnative *pNative;
-	for (size_t i=0; i<g_RegNatives.length(); i++)
+	for (size_t i=0; i<g_RegNatives.size(); i++)
 	{
 		pNative = g_RegNatives[i];
-		info.name = pNative->name.chars();
+		info.name = pNative->name.c_str();
 		info.func = (AMX_NATIVE)((void *)(pNative->pfn));
 		pNatives[i] = info;
 	}
-	pNatives[g_RegNatives.length()].name = NULL;
-	pNatives[g_RegNatives.length()].func = NULL;
+	pNatives[g_RegNatives.size()].name = NULL;
+	pNatives[g_RegNatives.size()].func = NULL;
 
 	//this needs to be deleted
 	return pNatives;
@@ -180,7 +201,7 @@ static cell AMX_NATIVE_CALL log_error(AMX *amx, cell *params)
 	int len;
 	char *err = format_amxstring(amx, params, 2, len);
 
-	ke::SafeSprintf(g_errorStr, sizeof(g_errorStr), "%s", err);
+	_snprintf(g_errorStr, sizeof(g_errorStr), "%s", err);
 	g_CurError = params[1];
 
 	return 1;
@@ -468,21 +489,21 @@ static cell AMX_NATIVE_CALL register_native(AMX *amx, cell *params)
 #elif defined(__GNUC__)
 # if defined(__APPLE__)
 	pNative->pfn = (char *)valloc(size+10);
-	mprotect((void *)pNative->pfn, size + 10, PROT_READ | PROT_WRITE | PROT_EXEC);
 # else
-	pNative->pfn = (char *)mmap(nullptr, size + 10, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+	pNative->pfn = (char *)memalign(sysconf(_SC_PAGESIZE), size+10);
 # endif
+	mprotect((void *)pNative->pfn, size+10, PROT_READ|PROT_WRITE|PROT_EXEC);
 #endif
 
-	int id = (int)g_RegNatives.length();
+	int id = (int)g_RegNatives.size();
 	
 	amxx_DynaMake(pNative->pfn, id);
 	pNative->func = idx;
 	pNative->style = params[3];
 
-	g_RegNatives.append(pNative);
+	g_RegNatives.push_back(pNative);
 
-	pNative->name = name;
+	pNative->name.assign(name);
 
 	return 1;
 }
@@ -490,13 +511,9 @@ static cell AMX_NATIVE_CALL register_native(AMX *amx, cell *params)
 void ClearPluginLibraries()
 {
 	ClearLibraries(LibSource_Plugin);
-	for (size_t i=0; i<g_RegNatives.length(); i++)
+	for (size_t i=0; i<g_RegNatives.size(); i++)
 	{
-#ifdef __linux__
-		munmap(g_RegNatives[i]->pfn, amxx_DynaCodesize() + 10);
-#else
 		delete [] g_RegNatives[i]->pfn;
-#endif
 		delete g_RegNatives[i];
 	}
 	g_RegNatives.clear();

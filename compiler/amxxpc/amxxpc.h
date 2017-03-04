@@ -1,17 +1,7 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
-
 #ifndef _AMXXSC_INCLUDE_H
 #define _AMXXSC_INCLUDE_H
 
-#include <amxmodx_version.h>
-
+#define VERSION_STRING		"1.8.1-300"
 #define MAGIC_HEADER2		0x414D5858
 #define	MAGIC_VERSION		0x0300
 
@@ -32,7 +22,7 @@
 # define dlclose(x)		FreeLibrary(x)
 #endif
 
-#include "zlib/zlib.h"
+#include "zlib.h"
 #include "Binary.h"
 
 typedef int	(*COMPILER)(int argc, char **argv);

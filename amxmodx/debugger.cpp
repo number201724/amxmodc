@@ -1,15 +1,41 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #include "amxmodx.h"
 #include "debugger.h"
 #include "binlog.h"
+
+#if !defined WIN32 && !defined _WIN32
+#define _snprintf snprintf
+#endif
 
 /**
  * AMX Mod X Debugging Engine
@@ -259,11 +285,11 @@ void Debugger::BeginExec()
 	m_Top++;
 	assert(m_Top >= 0);
 
-	if (m_Top >= (int)m_pCalls.length())
+	if (m_Top >= (int)m_pCalls.size())
 	{
 		Tracer *pTracer = new Tracer();
-		m_pCalls.append(pTracer);
-		assert(m_Top == static_cast<int>(m_pCalls.length() - 1));
+		m_pCalls.push_back(pTracer);
+		assert(m_Top == static_cast<int>(m_pCalls.size() - 1));
 	}
 
 	m_pCalls[m_Top]->Reset();
@@ -271,7 +297,7 @@ void Debugger::BeginExec()
 
 void Debugger::EndExec()
 {
-	assert(m_Top >= 0 && m_Top < (int)m_pCalls.length());
+	assert(m_Top >= 0 && m_Top < (int)m_pCalls.size());
 
 	m_pCalls[m_Top]->Reset();
 
@@ -280,7 +306,7 @@ void Debugger::EndExec()
 
 void Debugger::StepI()
 {
-	assert(m_Top >= 0 && m_Top < (int)m_pCalls.length());
+	assert(m_Top >= 0 && m_Top < (int)m_pCalls.size());
 
 #if defined BINLOG_ENABLED
 	if (g_binlog_level & 32)
@@ -306,21 +332,21 @@ void Debugger::Reset()
 
 int Debugger::GetTracedError()
 {
-	assert(m_Top >= 0 && m_Top < (int)m_pCalls.length());
+	assert(m_Top >= 0 && m_Top < (int)m_pCalls.size());
 
 	return m_pCalls[m_Top]->m_Error;
 }
 
 void Debugger::SetTracedError(int error)
 {
-	assert(m_Top >= 0 && m_Top < (int)m_pCalls.length());
+	assert(m_Top >= 0 && m_Top < (int)m_pCalls.size());
 
 	m_pCalls[m_Top]->m_Error = error;
 }
 
 trace_info_t *Debugger::GetTraceStart() const
 {
-	assert(m_Top >= 0 && m_Top < (int)m_pCalls.length());
+	assert(m_Top >= 0 && m_Top < (int)m_pCalls.size());
 
 	return m_pCalls[m_Top]->GetEnd();
 }
@@ -346,7 +372,7 @@ trace_info_t *Debugger::GetNextTrace(trace_info_t *pTraceInfo)
 
 bool Debugger::ErrorExists()
 {
-	assert(m_Top >= 0 && m_Top < (int)m_pCalls.length());
+	assert(m_Top >= 0 && m_Top < (int)m_pCalls.size());
 
 	return (m_pCalls[m_Top]->m_Error != AMX_ERR_NONE);
 }
@@ -356,7 +382,7 @@ int Debugger::FormatError(char *buffer, size_t maxLength)
 	if (!ErrorExists())
 		return -1;
 
-	assert(m_Top >= 0 && m_Top < (int)m_pCalls.length());
+	assert(m_Top >= 0 && m_Top < (int)m_pCalls.size());
 
 	Tracer *pTracer = m_pCalls[m_Top];
 	int error = pTracer->m_Error;
@@ -365,9 +391,9 @@ int Debugger::FormatError(char *buffer, size_t maxLength)
 	//trace_info_t *pTrace = pTracer->GetEnd();
 	//cell cip = _CipAsVa(m_pAmx->cip);
 	//cell *p_cip = NULL;
-	//int amx_err = AMX_ERR_NONE;
+	int amx_err = AMX_ERR_NONE;
 
-	size += ke::SafeSprintf(buffer, maxLength, "Run time error %d: %s ", error, gen_err);
+	size += _snprintf(buffer, maxLength, "Run time error %d: %s ", error, gen_err);
 	buffer += size;
 	maxLength -= size;
 
@@ -384,13 +410,13 @@ int Debugger::FormatError(char *buffer, size_t maxLength)
 		}*/
 		//New code only requires this...
 		num = (int)(_INT_PTR)m_pAmx->usertags[UT_NATIVE];
-		/*amx_err = */amx_GetNative(m_pAmx, num, native_name);
+		amx_err = amx_GetNative(m_pAmx, num, native_name);
 		/*if (num)
 			amx_err = amx_GetNative(m_pAmx, (int)*p_cip, native_name);
 		else 
 			amx_err = AMX_ERR_NOTFOUND;*/
 		//if (!amx_err)
-			size += ke::SafeSprintf(buffer, maxLength, "(native \"%s\")", native_name);
+			size += _snprintf(buffer, maxLength, "(native \"%s\")", native_name);
 	}
 
 	return size;
@@ -521,10 +547,8 @@ int AMXAPI Debugger::DebugHook(AMX *amx)
 
 void Debugger::Clear()
 {
-	for (size_t i = 0; i < m_pCalls.length(); i++)
-	{
-		delete m_pCalls[i];
-	}
+	for (size_t i=0; i<m_pCalls.size(); i++)
+			delete m_pCalls[i];
 
 	m_pCalls.clear();
 }
@@ -535,18 +559,13 @@ void Debugger::DisplayTrace(const char *message)
 		AMXXLOG_Error("%s", message);
 
 	char buffer[512];
-	int length = FormatError(buffer, sizeof(buffer)-1);
+	FormatError(buffer, sizeof(buffer)-1);
 
 	const char *filename = _GetFilename();
-	const char *version = _GetVersion();
 
-	AMXXLOG_Error("[AMXX] Displaying debug trace (plugin \"%s\", version \"%s\")", filename, version);
+	AMXXLOG_Error("[AMXX] Displaying debug trace (plugin \"%s\")", filename);
+	AMXXLOG_Error("[AMXX] %s", buffer);
 	
-	if (length != -1) // Don't show blank line if AMX_ERR_NONE is set since there is no error message.
-	{
-		AMXXLOG_Error("[AMXX] %s", buffer);
-	}
-
 	int count = 0;
 	long lLine;
 	const char *file, *function;
@@ -568,7 +587,7 @@ void Debugger::DisplayTrace(const char *message)
 
 const char *Debugger::_GetFilename()
 {
-	if (m_FileName.length() < 1)
+	if (m_FileName.size() < 1)
 	{
 		const char *filename = "";
 		CPluginMngr::CPlugin *pl = g_plugins.findPluginFast(m_pAmx);
@@ -580,27 +599,10 @@ const char *Debugger::_GetFilename()
 			if (a)
 				filename = (*a).getName();
 		}
-		m_FileName = filename;
+		m_FileName.assign(filename);
 	}
 
-	return m_FileName.chars();
-}
-
-const char *Debugger::_GetVersion()
-{
-    if (m_Version.length() < 1)
-    {
-        const char *version = "";
-        CPluginMngr::CPlugin *pl = g_plugins.findPluginFast(m_pAmx);
-        if (pl)
-        {
-            version = pl->getVersion();
-        }
-
-        m_Version = version;
-    }
-
-    return m_Version.chars();
+	return m_FileName.c_str();
 }
 
 void Debugger::FmtGenericMsg(AMX *amx, int error, char buffer[], size_t maxLength)
@@ -623,12 +625,12 @@ void Debugger::FmtGenericMsg(AMX *amx, int error, char buffer[], size_t maxLengt
 
 	if (error == AMX_ERR_EXIT)
 	{
-		ke::SafeSprintf(buffer, maxLength, "Run time error %d (plugin \"%s\") - %s", error, filename, GenericError(AMX_ERR_EXIT));
+		_snprintf(buffer, maxLength, "Run time error %d (plugin \"%s\") - %s", error, filename, GenericError(AMX_ERR_EXIT));
 	} else if (error == AMX_ERR_NATIVE) {
 		amx_GetNative(amx, reinterpret_cast<long>(amx->usertags[UT_NATIVE]), native);
-		ke::SafeSprintf(buffer, maxLength, "Run time error %d (plugin \"%s\") (native \"%s\") - debug not enabled!", error, filename, native);
+		_snprintf(buffer, maxLength, "Run time error %d (plugin \"%s\") (native \"%s\") - debug not enabled!", error, filename, native);
 	} else {
-		ke::SafeSprintf(buffer, maxLength, "Run time error %d (plugin \"%s\") - debug not enabled!", error, filename);
+		_snprintf(buffer, maxLength, "Run time error %d (plugin \"%s\") - debug not enabled!", error, filename);
 	}
 }
 
@@ -689,17 +691,17 @@ int Handler::SetNativeFilter(const char *function)
 void Handler::SetErrorMsg(const char *msg)
 {
 	if (!msg)
-		m_MsgCache = nullptr;
+		m_MsgCache.clear();
 	else
-		m_MsgCache = msg;
+		m_MsgCache.assign(msg);
 }
 
 const char *Handler::GetLastMsg()
 {
-	if (m_MsgCache.length() < 1)
+	if (m_MsgCache.size() < 1)
 		return NULL;
 
-	return m_MsgCache.chars();
+	return m_MsgCache.c_str();
 }
 
 int Handler::HandleModule(const char *module, bool isClass)
@@ -806,8 +808,8 @@ int Handler::HandleError(const char *msg)
 		return 0;
 
 	m_Handling = true;
-	m_pTrace = nullptr;
-	m_FmtCache = nullptr;
+	m_pTrace = NULL;
+	m_FmtCache.clear();
 
 	Debugger *pDebugger = (Debugger *)m_pAmx->userdata[UD_DEBUGGER];
 
@@ -819,11 +821,11 @@ int Handler::HandleError(const char *msg)
 		pDebugger->SetTracedError(error);
 		m_pTrace = pDebugger->GetTraceStart();
 		pDebugger->FormatError(_buffer, sizeof(_buffer)-1);
-		m_FmtCache = _buffer;
+		m_FmtCache.assign(_buffer);
 		pDebugger->BeginExec();
 	} else {
 		Debugger::FmtGenericMsg(m_pAmx, error, _buffer, sizeof(_buffer)-1);
-		m_FmtCache = _buffer;
+		m_FmtCache.assign(_buffer);
 	}
 	
 	SetErrorMsg(msg);
@@ -855,8 +857,8 @@ int Handler::HandleError(const char *msg)
 	amx_Release(m_pAmx, hea_addr);
 
 	m_Handling = false;
-	m_pTrace = nullptr;
-	m_FmtCache = nullptr;
+	m_pTrace = NULL;
+	m_FmtCache.clear();
 
 	if (err != AMX_ERR_NONE || !result)
 		return 0;
@@ -981,7 +983,7 @@ static cell AMX_NATIVE_CALL set_native_filter(AMX *amx, cell *params)
 	if (err != AMX_ERR_NONE)
 	{
 		Debugger::GenericMessage(amx, AMX_ERR_NOTFOUND);
-		AMXXLOG_Error("[AMXX] Function not found: %s", function);
+		AMXXLOG_Error("[AMXX] Function not found: %s", func);
 		return 0;
 	}
 

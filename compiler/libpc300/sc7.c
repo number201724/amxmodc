@@ -34,8 +34,9 @@
  *  2.  Altered source versions must be plainly marked as such, and must not be
  *      misrepresented as being the original software.
  *  3.  This notice may not be removed or altered from any source distribution.
+ *
+ *  Version: $Id: sc7.c 1724 2005-07-24 20:00:55Z dvander $
  */
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>     /* for atoi() */
@@ -51,7 +52,7 @@
   #pragma warning(disable:4125)  /* decimal digit terminates octal escape sequence */
 #endif
 
-#include "sc7-in.scp"
+#include "sc7.scp"
 
 #if defined _MSC_VER
   #pragma warning(pop)
@@ -334,15 +335,65 @@ SC_FUNC void stgset(int onoff)
  * are embedded in the .EXE file in compressed format, here we expand
  * them (and allocate memory for the sequences).
  */
-static SEQUENCE *sequences = sequences_cmp;
+static SEQUENCE *sequences;
 
 SC_FUNC int phopt_init(void)
 {
+  int number, i, len;
+  char str[160];
+
+  /* count number of sequences */
+  for (number=0; sequences_cmp[number].find!=NULL; number++)
+    /* nothing */;
+  number++;             /* include an item for the NULL terminator */
+
+  if ((sequences=(SEQUENCE*)malloc(number * sizeof(SEQUENCE)))==NULL)
+    return FALSE;
+
+  /* pre-initialize all to NULL (in case of failure) */
+  for (i=0; i<number; i++) {
+    sequences[i].find=NULL;
+    sequences[i].replace=NULL;
+    sequences[i].savesize=0;
+  } /* for */
+
+  /* expand all strings */
+  for (i=0; i<number-1; i++) {
+    len = strexpand(str,(unsigned char*)sequences_cmp[i].find,sizeof str,SCPACK_TABLE);
+    assert(len<=sizeof str);
+    assert(len==(int)strlen(str)+1);
+    sequences[i].find=(char*)malloc(len);
+    if (sequences[i].find!=NULL)
+      strcpy(sequences[i].find,str);
+    len = strexpand(str,(unsigned char*)sequences_cmp[i].replace,sizeof str,SCPACK_TABLE);
+    assert(len<=sizeof str);
+    assert(len==(int)strlen(str)+1);
+    sequences[i].replace=(char*)malloc(len);
+    if (sequences[i].replace!=NULL)
+      strcpy(sequences[i].replace,str);
+    sequences[i].savesize=sequences_cmp[i].savesize;
+    if (sequences[i].find==NULL || sequences[i].replace==NULL)
+      return phopt_cleanup();
+  } /* for */
+
   return TRUE;
 }
 
 SC_FUNC int phopt_cleanup(void)
 {
+  int i;
+  if (sequences!=NULL) {
+    i=0;
+    while (sequences[i].find!=NULL || sequences[i].replace!=NULL) {
+      if (sequences[i].find!=NULL)
+        free(sequences[i].find);
+      if (sequences[i].replace!=NULL)
+        free(sequences[i].replace);
+      i++;
+    } /* while */
+    free(sequences);
+    sequences=NULL;
+  } /* if */
   return FALSE;
 }
 
@@ -354,13 +405,13 @@ SC_FUNC int phopt_cleanup(void)
   #define MAX_ALIAS       (PAWN_CELL_SIZE/4) * MAX_OPT_CAT
 #endif
 
-static int matchsequence(const char *start,const char *end,const char *pattern,
+static int matchsequence(char *start,char *end,char *pattern,
                          char symbols[MAX_OPT_VARS][MAX_ALIAS+1],
                          int *match_length)
 {
   int var,i;
   char str[MAX_ALIAS+1];
-  const char *start_org=start;
+  char *start_org=start;
   cell value;
   char *ptr;
 
@@ -393,7 +444,7 @@ static int matchsequence(const char *start,const char *end,const char *pattern,
       } /* if */
       break;
     case '-':
-      value=-strtol(pattern+1,(char **)&pattern,16);
+      value=-strtol(pattern+1,&pattern,16);
       ptr=itoh((ucell)value);
       while (*ptr!='\0') {
         if (tolower(*start) != tolower(*ptr))
@@ -432,9 +483,9 @@ static int matchsequence(const char *start,const char *end,const char *pattern,
   return TRUE;
 }
 
-static char *replacesequence(const char *pattern,char symbols[MAX_OPT_VARS][MAX_ALIAS+1],int *repl_length)
+static char *replacesequence(char *pattern,char symbols[MAX_OPT_VARS][MAX_ALIAS+1],int *repl_length)
 {
-  const char *lptr;
+  char *lptr;
   int var;
   char *buffer;
 
@@ -470,10 +521,10 @@ static char *replacesequence(const char *pattern,char symbols[MAX_OPT_VARS][MAX_
     return (char*)error(103);
 
   /* replace the pattern into this temporary buffer */
-  char *ptr=buffer;
-  *ptr++='\t';         /* the "replace" patterns do not have tabs */
+  lptr=buffer;
+  *lptr++='\t';         /* the "replace" patterns do not have tabs */
   while (*pattern) {
-    assert((int)(ptr-buffer)<*repl_length);
+    assert((int)(lptr-buffer)<*repl_length);
     switch (*pattern) {
     case '%':
       /* write out the symbol */
@@ -482,23 +533,23 @@ static char *replacesequence(const char *pattern,char symbols[MAX_OPT_VARS][MAX_
       var=atoi(pattern) - 1;
       assert(var>=0 && var<MAX_OPT_VARS);
       assert(symbols[var][0]!='\0');    /* variable should be defined */
-      strcpy(ptr,symbols[var]);
-      ptr+=strlen(symbols[var]);
+      strcpy(lptr,symbols[var]);
+      lptr+=strlen(symbols[var]);
       break;
     case '!':
       /* finish the line, optionally start the next line with an indent */
-      *ptr++='\n';
-      *ptr++='\0';
+      *lptr++='\n';
+      *lptr++='\0';
       if (*(pattern+1)!='\0')
-        *ptr++='\t';
+        *lptr++='\t';
       break;
     default:
-      *ptr++=*pattern;
+      *lptr++=*pattern;
     } /* switch */
     pattern++;
   } /* while */
 
-  assert((int)(ptr-buffer)==*repl_length);
+  assert((int)(lptr-buffer)==*repl_length);
   return buffer;
 }
 

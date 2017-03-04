@@ -1,16 +1,36 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #include "amxmodx.h"
 #include "CLogEvent.h"
-
-NativeHandle<LogEventHook> LogEventHandles;
 
 // *****************************************************
 // class LogEventsMngr
@@ -37,9 +57,9 @@ int LogEventsMngr::CLogCmp::compareCondition(const char* string)
 	logid = parent->logCounter;
 	
 	if (in)
-		return result = strstr(string, text.chars()) ? 0 : 1;
+		return result = strstr(string, text.c_str()) ? 0 : 1;
 	
-	return result = strcmp(string,text.chars());
+	return result = strcmp(string,text.c_str());
 }
 
 LogEventsMngr::CLogCmp* LogEventsMngr::registerCondition(char* filter)
@@ -61,7 +81,7 @@ LogEventsMngr::CLogCmp* LogEventsMngr::registerCondition(char* filter)
 	
 	while (c)
 	{
-		if ((c->pos == pos) && (c->in == in) && !strcmp(c->text.chars(), filter))
+		if ((c->pos == pos) && (c->in == in) && !strcmp(c->text.c_str(), filter))
 			return c;
 		c = c->next;
 	}
@@ -166,37 +186,18 @@ void LogEventsMngr::parseLogString()
 	}
 }
 
-void LogEventsMngr::CLogEvent::setForwardState(ForwardState state)
-{
-	m_State = state;
-}
-
-int LogEventsMngr::registerLogEvent(CPluginMngr::CPlugin* plugin, int func, int pos)
+LogEventsMngr::CLogEvent* LogEventsMngr::registerLogEvent(CPluginMngr::CPlugin* plugin, int func, int pos)
 {
 	if (pos < 1 || pos > MAX_LOGARGS)
-	{
 		return 0;
-	}
 
 	arelogevents = true;
-	auto d = &logevents[pos];
-
+	CLogEvent** d = &logevents[pos];
+	
 	while (*d)
-	{
 		d = &(*d)->next;
-	}
-
-	auto logevent = new CLogEvent(plugin, func, this);
-	auto handle = LogEventHandles.create(logevent);
-
-	if (!handle)
-	{
-		return 0;
-	}
-
-	*d = logevent;
-
-	return handle;
+	
+	return *d = new CLogEvent(plugin, func, this);
 }
 
 void LogEventsMngr::executeLogEvents()
@@ -205,13 +206,8 @@ void LogEventsMngr::executeLogEvents()
 
 	for (CLogEvent* a = logevents[logArgc]; a; a = a->next)
 	{
-		if (a->m_State != FSTATE_ACTIVE)
-		{
-			continue;
-		}
-
 		valid = true;
-
+		
 		for (CLogEvent::LogCond* b = a->filters; b; b = b->next)
 		{
 			valid = false;
@@ -224,11 +220,11 @@ void LogEventsMngr::executeLogEvents()
 					break;
 				}
 			}
-
-			if (!valid)
+			
+			if (!valid) 
 				break;
 		}
-
+		
 		if (valid)
 		{
 			executeForwards(a->func);
@@ -253,8 +249,6 @@ void LogEventsMngr::clearLogEvents()
 	}
 	
 	clearConditions();
-
-	LogEventHandles.clear();
 }
 
 void LogEventsMngr::clearConditions()

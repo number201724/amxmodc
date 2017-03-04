@@ -1,11 +1,33 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #include "amxmodx.h"
 #include "CTask.h"
@@ -91,24 +113,22 @@ void CTaskMngr::CTask::changeBase(float fNewBase)
 
 void CTaskMngr::CTask::resetNextExecTime(float fCurrentTime)
 {
-	// If we're here while we're executing we would add m_fBase twice
-	if (!m_bInExecute)
-		m_fNextExecTime = fCurrentTime + m_fBase;
+	m_fNextExecTime = fCurrentTime + m_fBase;
 }
 
-void CTaskMngr::CTask::executeIfRequired(float fCurrentTime, float fTimeLimit, float fTimeLeft)
+void CTaskMngr::CTask::executeIfRequired(double fCurrentTime)
 {
 	bool execute = false;
 	bool done = false;
 	
 	if (m_bAfterStart)
 	{
-		if (fCurrentTime - fTimeLeft + 1.0f >= m_fBase)
+		if (fCurrentTime + 1.0f >= m_fBase)
 			execute = true;
 	}
 	else if (m_bBeforeEnd)
 	{
-		if (fTimeLimit != 0.0f && (fTimeLeft + fTimeLimit * 60.0f) - fCurrentTime - 1.0f <= m_fBase)
+		if (fCurrentTime - 1.0f <= m_fBase)
 			execute = true;
 	}
 	else if (m_fNextExecTime <= fCurrentTime)
@@ -183,9 +203,7 @@ CTaskMngr::CTask::~CTask()
 
 CTaskMngr::CTaskMngr()
 {
-	m_pTmr_CurrentTime = NULL;
-	m_pTmr_TimeLimit = NULL;
-	m_pTmr_TimeLeft = NULL;
+
 }
 
 CTaskMngr::~CTaskMngr()
@@ -193,11 +211,9 @@ CTaskMngr::~CTaskMngr()
 	clear();
 }
 
-void CTaskMngr::registerTimers(float *pCurrentTime, float *pTimeLimit, float *pTimeLeft)
+void CTaskMngr::registerTimers()
 {
-	m_pTmr_CurrentTime = pCurrentTime;
-	m_pTmr_TimeLimit = pTimeLimit;
-	m_pTmr_TimeLeft = pTimeLeft;
+	m_fCurrentTime = 0;
 }
 
 void CTaskMngr::registerTask(CPluginMngr::CPlugin *pPlugin, int iFunc, int iFlags, cell iId, float fBase, int iParamsLen, const cell *pParams, int iRepeat)
@@ -208,7 +224,7 @@ void CTaskMngr::registerTask(CPluginMngr::CPlugin *pPlugin, int iFunc, int iFlag
 	if (iter)
 	{
 		// found: reuse it
-		iter->set(pPlugin, iFunc, iFlags, iId, fBase, iParamsLen, pParams, iRepeat, *m_pTmr_CurrentTime);
+		iter->set(pPlugin, iFunc, iFlags, iId, fBase, iParamsLen, pParams, iRepeat, m_fCurrentTime);
 	} else {
 		// not found: make a new one
 		CTask *pTmp = new CTask;
@@ -216,7 +232,7 @@ void CTaskMngr::registerTask(CPluginMngr::CPlugin *pPlugin, int iFunc, int iFlag
 		if (!pTmp)
 			return;
 		
-		pTmp->set(pPlugin, iFunc, iFlags, iId, fBase, iParamsLen, pParams, iRepeat, *m_pTmr_CurrentTime);
+		pTmp->set(pPlugin, iFunc, iFlags, iId, fBase, iParamsLen, pParams, iRepeat, m_fCurrentTime);
 		m_Tasks.put(pTmp);
 	}
 }
@@ -246,7 +262,7 @@ int CTaskMngr::changeTasks(int iId, AMX *pAmx, float fNewBase)
 	while (iter)
 	{
 		iter->changeBase(fNewBase);
-		iter->resetNextExecTime(*m_pTmr_CurrentTime);
+		iter->resetNextExecTime(m_fCurrentTime);
 		++i;
 		iter = m_Tasks.find(++iter, descriptor);
 	}
@@ -259,13 +275,14 @@ bool CTaskMngr::taskExists(int iId, AMX *pAmx)
 	return m_Tasks.find(CTaskDescriptor(iId, pAmx));
 }
 
-void CTaskMngr::startFrame()
+void CTaskMngr::startFrame(float frame)
 {
+	m_fCurrentTime = frame;
 	for (TaskListIter iter = m_Tasks.begin(); iter; ++iter)
 	{
 		if (iter->isFree())
 			continue;
-		iter->executeIfRequired(*m_pTmr_CurrentTime, *m_pTmr_TimeLimit, *m_pTmr_TimeLeft);
+		iter->executeIfRequired(m_fCurrentTime);
 	}
 }
 

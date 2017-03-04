@@ -1,12 +1,3 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
-
 #include "amxmodx.h"
 #include "format.h"
 #include "datastructs.h"
@@ -42,129 +33,16 @@ template size_t atcprintf<char, cell>(char *, size_t, const cell *, AMX *, cell 
 template size_t atcprintf<cell, char>(cell *, size_t, const char *, AMX *, cell *, int *);
 template size_t atcprintf<char, char>(char *, size_t, const char *, AMX *, cell *, int *);
 
-THash<ke::AString, lang_err> BadLang_Table;
+static cvar_t *amx_mldebug = NULL;
+static cvar_t *amx_cl_langs = NULL;
 
-static cvar_t *amx_mldebug = nullptr;
-static cvar_t *amx_cl_langs = nullptr;
 
-const char *playerlang(const cell index)
-{
-	const char *pLangName = nullptr;
-
-	if (index == LANG_PLAYER)
-	{
-		if (!amx_cl_langs)
-		{
-			amx_cl_langs = CVAR_GET_POINTER("amx_client_languages");
-		}
-
-		if (static_cast<int>(amx_cl_langs->value) == 0)
-		{
-			pLangName = amxmodx_language->string;
-		}
-		else
-		{
-			pLangName = ENTITY_KEYVALUE(GET_PLAYER_POINTER_I(g_langMngr.GetDefLang())->pEdict, "lang");
-		}
-	}
-	else if (index == LANG_SERVER)
-	{
-		pLangName = amxmodx_language->string;
-	}
-	else if (index >= 1 && index <= gpGlobals->maxClients)
-	{
-		if (!amx_cl_langs)
-		{
-			amx_cl_langs = CVAR_GET_POINTER("amx_client_languages");
-		}
-
-		if (static_cast<int>(amx_cl_langs->value) == 0)
-		{
-			pLangName = amxmodx_language->string;
-		}
-		else
-		{
-			pLangName = ENTITY_KEYVALUE(GET_PLAYER_POINTER_I(index)->pEdict, "lang");
-		}
-	}
-
-	return pLangName;
-}
-
-const char *translate(AMX *amx, const char *lang, const char *key)
-{
-	auto pLangName = lang;
-	int status;
-
-	if (!pLangName || !isalpha(pLangName[0]))
-	{
-		pLangName = amxmodx_language->string;
-	}
-
-	auto def = g_langMngr.GetDef(pLangName, key, status);
-
-	if (!amx_mldebug)
-	{
-		amx_mldebug = CVAR_GET_POINTER("amx_mldebug");
-	}
-
-	auto debug = (amx_mldebug && amx_mldebug->string && (amx_mldebug->string[0] != '\0'));
-
-	if (debug)
-	{
-		int debug_status;
-		auto validlang = true;
-		auto testlang = amx_mldebug->string;
-
-		if (!g_langMngr.LangExists(testlang))
-		{
-			AMXXLOG_Error("[AMXX] \"%s\" is an invalid debug language", testlang);
-			validlang = false;
-		}
-
-		g_langMngr.GetDef(testlang, key, debug_status);
-
-		if (validlang && debug_status == ERR_BADKEY)
-		{
-			AMXXLOG_Error("[AMXX] Language key \"%s\" not found for language \"%s\", check \"%s\"", key, testlang, GetFileName(amx));
-		}
-	}
-
-	if (!def)
-	{
-		if (debug && status == ERR_BADLANG)
-		{
-			ke::AString langName(pLangName);
-
-			auto &err = BadLang_Table.AltFindOrInsert(ke::Move(langName));
-
-			if (err.last + 120.0f < gpGlobals->time)
-			{
-				AMXXLOG_Error("[AMXX] Language \"%s\" not found", pLangName);
-				err.last = gpGlobals->time;
-			}
-		}
-
-		if (strcmp(pLangName, amxmodx_language->string) != 0)
-		{
-			def = g_langMngr.GetDef(amxmodx_language->string, key, status);
-		}
-
-		if (!def && (strcmp(pLangName, "en") != 0 && strcmp(amxmodx_language->string, "en") != 0))
-		{
-			def = g_langMngr.GetDef("en", key, status);
-		}
-	}
-
-	return def;
-}
-
-template <typename U, typename S>
-void AddString(U **buf_p, size_t &maxlen, const S *string, int width, int prec)
+template <typename U>
+void AddString(U **buf_p, size_t &maxlen, const cell *string, int width, int prec)
 {
 	int		size = 0;
 	U		*buf;
-	static S nlstr[] = {'(','n','u','l','l',')','\0'};
+	static cell nlstr[] = {'(','n','u','l','l',')','\0'};
 
 	buf = *buf_p;
 
@@ -188,12 +66,6 @@ void AddString(U **buf_p, size_t &maxlen, const S *string, int width, int prec)
 
 	if (size > (int)maxlen)
 		size = maxlen;
-
-	/* If precision is provided, make sure we don't truncate a multi-byte character */
-	if (prec >= size && (string[size - 1] & 1 << 7))
-	{
-		size -= UTIL_CheckValidChar((cell *)string + size - 1);
-	}
 
 	maxlen -= size;
 	width -= size;
@@ -329,58 +201,6 @@ void AddFloat(U **buf_p, size_t &maxlen, double fval, int width, int prec, int f
 	}
 
 	// update parent's buffer pointer
-	*buf_p = buf;
-}
-
-template <typename U>
-void AddBinary(U **buf_p, size_t &maxlen, unsigned int val, int width, int flags)
-{
-	char text[32];
-	int digits;
-	U *buf;
-
-	digits = 0;
-	do
-	{
-		if (val & 1)
-		{
-			text[digits++] = '1';
-		}
-		else
-		{
-			text[digits++] = '0';
-		}
-		val >>= 1;
-	} while (val);
-
-	buf = *buf_p;
-
-	if (!(flags & LADJUST))
-	{
-		while (digits < width && maxlen)
-		{
-			*buf++ = (flags & ZEROPAD) ? '0' : ' ';
-			width--;
-			maxlen--;
-		}
-	}
-
-	while (digits-- && maxlen)
-	{
-		*buf++ = text[digits];
-		width--;
-		maxlen--;
-	}
-
-	if (flags & LADJUST)
-	{
-		while (width-- && maxlen)
-		{
-			*buf++ = (flags & ZEROPAD) ? '0' : ' ';
-			maxlen--;
-		}
-	}
-
 	*buf_p = buf;
 }
 
@@ -556,7 +376,7 @@ size_t atcprintf(D *buffer, size_t maxlen, const S *format, AMX *amx, cell *para
 	int		width;
 	int		prec;
 	int		n;
-	//char	sign;
+	char	sign;
 	const S	*fmt;
 	size_t	llen = maxlen;
 
@@ -584,7 +404,7 @@ size_t atcprintf(D *buffer, size_t maxlen, const S *format, AMX *amx, cell *para
 		flags = 0;
 		width = 0;
 		prec = -1;
-		//sign = '\0';
+		sign = '\0';
 
 rflag:
 		ch = static_cast<D>(*fmt++);
@@ -623,11 +443,6 @@ reswitch:
 			CHECK_ARGS(0);
 			*buf_p++ = static_cast<D>(*get_amxaddr(amx, params[arg]));
 			llen--;
-			arg++;
-			break;
-		case 'b':
-			CHECK_ARGS(0);
-			AddBinary(&buf_p, llen, *get_amxaddr(amx, params[arg]), width, flags);
 			arg++;
 			break;
 		case 'd':
@@ -677,103 +492,6 @@ reswitch:
 			AddString(&buf_p, llen, get_amxaddr(amx, params[arg]), width, prec);
 			arg++;
 			break;
-		case 'L':
-		case 'l':
-			{
-				const char *lang;
-				int len;
-				if (ch == 'L')
-				{
-					CHECK_ARGS(1);
-					auto currParam = params[arg++];
-					lang = playerlang(*get_amxaddr(amx, currParam));
-					if (!lang)
-						lang = get_amxstring(amx, currParam, 2, len);
-				}
-				else
-				{
-					CHECK_ARGS(0);
-					lang = playerlang(g_langMngr.GetDefLang());
-				}
-				const char *key = get_amxstring(amx, params[arg++], 3, len);
-				const char *def = translate(amx, lang, key);
-				if (!def)
-				{
-					static char buf[255];
-					ke::SafeSprintf(buf, sizeof(buf), "ML_NOTFOUND: %s", key);
-					def = buf;
-				}
-				size_t written = atcprintf(buf_p, llen, def, amx, params, &arg);
-				buf_p += written;
-				llen -= written;
-				break;
-			}
-		case 'N':
-			{
-				CHECK_ARGS(0);
-				cell *addr = get_amxaddr(amx, params[arg]);
-				char buffer[255];
-				if (*addr)
-				{
-					CPlayer *player = NULL;
-
-					if (*addr >= 1 && *addr <= gpGlobals->maxClients)
-					{
-						player = GET_PLAYER_POINTER_I(*addr);
-					}
-
-					if (!player || !player->initialized)
-					{
-						LogError(amx, AMX_ERR_NATIVE, "Client index %d is invalid", *addr);
-						return 0;
-					}
-
-					const char *auth = GETPLAYERAUTHID(player->pEdict);
-					if (!auth || auth[0] == '\0')
-					{
-						auth = "STEAM_ID_PENDING";
-					}
-
-					int userid = GETPLAYERUSERID(player->pEdict);
-					ke::SafeSprintf(buffer, sizeof(buffer), "%s<%d><%s><%s>", player->name.chars(), userid, auth, player->team.chars());
-				}
-				else
-				{
-					ke::SafeSprintf(buffer, sizeof(buffer), "Console<0><Console><Console>");
-				}
-
-				AddString(&buf_p, llen, buffer, width, prec);
-				arg++;
-				break;
-			}
-		case 'n':
-			{
-				CHECK_ARGS(0);
-				cell *addr = get_amxaddr(amx, params[arg]);
-				const char *name = "Console";
-
-				if (*addr)
-				{
-					CPlayer *player = NULL;
-
-					if (*addr >= 1 && *addr <= gpGlobals->maxClients)
-					{
-						player = GET_PLAYER_POINTER_I(*addr);
-					}
-
-					if (!player || !player->initialized)
-					{
-						LogError(amx, AMX_ERR_NATIVE, "Client index %d is invalid", *addr);
-						return 0;
-					}
-
-					name = player->name.chars();
-				}
-			
-				AddString(&buf_p, llen, name, width, prec);
-				arg++;
-				break;
-			}
 		case '%':
 			*buf_p++ = static_cast<D>(ch);
 			if (!llen)
@@ -799,14 +517,6 @@ reswitch:
 done:
 	*buf_p = static_cast<D>(0);
 	*param = arg;
-
-	/* if max buffer length consumed, make sure we don't truncate a multi-byte character */
-	if (llen <= 0 && *(buf_p - 1) & 1 << 7)
-	{
-		llen += UTIL_CheckValidChar(buf_p - 1);
-		*(buf_p - llen) = static_cast<D>(0);
-	}
-
 	return maxlen-llen;
 }
 

@@ -1,16 +1,5 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
-
 #include "amxmodx.h"
 #include <stdlib.h>
-#include <time.h>
-#include "datastructs.h"
 
 /***********************************
  *   About the double array hack   *
@@ -62,7 +51,6 @@ enum SortOrder
 {
 	Sort_Ascending = 0,
 	Sort_Descending = 1,
-	Sort_Random = 2,
 };
 
 int sort_ints_asc(const void *int1, const void *int2)
@@ -75,40 +63,17 @@ int sort_ints_desc(const void *int1, const void *int2)
 	return (*(int *)int2) - (*(int *)int1);
 }
 
-void sort_random(cell *array, cell size)
-{
-	srand((unsigned int)time(NULL));
-
-	for (int i = size-1; i > 0; i--)
-	{
-		int n = rand() % (i + 1);
-
-		if (array[i] != array[n]) 
-		{
-			array[i] ^= array[n];
-			array[n] ^= array[i];
-			array[i] ^= array[n];
-		}
-	}
-}
-
 static cell AMX_NATIVE_CALL SortIntegers(AMX *amx, cell *params)
 {
 	cell *array = get_amxaddr(amx, params[1]);
 	cell array_size = params[2];
 	cell type = params[3];
 
-	if (type == Sort_Ascending) 
+	if (type == Sort_Ascending)
 	{
 		qsort(array, array_size, sizeof(cell), sort_ints_asc);
-	} 
-	else if (type == Sort_Descending) 
-	{
+	} else {
 		qsort(array, array_size, sizeof(cell), sort_ints_desc);
-	} 
-	else
-	{
-		sort_random(array, array_size);
 	}
 
 	return 1;
@@ -153,14 +118,8 @@ static cell AMX_NATIVE_CALL SortFloats(AMX *amx, cell *params)
 	if (type == Sort_Ascending)
 	{
 		qsort(array, array_size, sizeof(cell), sort_floats_asc);
-	} 
-	else if (type == Sort_Descending)
-	{
+	} else {
 		qsort(array, array_size, sizeof(cell), sort_floats_desc);
-	}
-	else
-	{
-		sort_random(array, array_size);
 	}
 
 	return 1;
@@ -234,14 +193,8 @@ static cell AMX_NATIVE_CALL SortStrings(AMX *amx, cell *params)
 	if (type == Sort_Ascending)
 	{
 		qsort(array, array_size, sizeof(cell), sort_strings_asc);
-	} 
-	else if (type == Sort_Descending)
-	{
+	} else {
 		qsort(array, array_size, sizeof(cell), sort_strings_desc);
-	}
-	else
-	{
-		sort_random(array, array_size);
 	}
 
 	/* END HACKHACK - restore what we damaged so Pawn doesn't throw up.
@@ -395,112 +348,6 @@ static cell AMX_NATIVE_CALL SortCustom2D(AMX *amx, cell *params)
 	return 1;
 }
 
-enum SortType
-{
-	Sort_Integer = 0,
-	Sort_Float,
-	Sort_String,
-};
-
-int strcellcmp(cell *s1, cell *s2)
-{
-	for (; *s1 == *s2; s1++, s2++)
-	{
-		if (*s1 == '\0')
-		{
-			return 0;
-		}
-	}
-
-	return (*(byte *)s1 < *(byte *)s2) ? -1 : +1;
-}
-
-int sort_adtarray_strings_asc(const void *str1, const void *str2)
-{
-	return strcellcmp((cell *)str1, (cell *)str2);
-}
-
-int sort_adtarray_strings_desc(const void *str1, const void *str2)
-{
-	return strcellcmp((cell *)str2, (cell *)str1);
-}
-
-void sort_adt_random(CellArray *cArray)
-{
-	size_t arraysize = cArray->size();
-
-	srand((unsigned int)time(NULL));
-
-	for (int i = arraysize-1; i > 0; i--)
-	{
-		int n = rand() % (i + 1);
-
-		cArray->swap(i, n);
-	}
-}
-
-static cell AMX_NATIVE_CALL SortADTArray(AMX *amx, cell *params)
-{
-	CellArray* vec = ArrayHandles.lookup(params[1]);
-
-	if (!vec)
-	{
-		LogError(amx, AMX_ERR_NATIVE, "Invalid array handle provided (%d)", params[1]);
-		return 0;
-	}
-
-	cell order = params[2];
-
-	if (order == Sort_Random)
-	{
-		sort_adt_random(vec);
-
-		return 1;
-	}
-
-	cell type = params[3];
-	size_t arraysize = vec->size();
-	size_t blocksize = vec->blocksize();
-	cell *array = vec->base();
-
-	if (type == Sort_Integer)
-	{
-		if (order == Sort_Ascending)
-		{
-			qsort(array, arraysize, blocksize * sizeof(cell), sort_ints_asc);
-		}
-		else
-		{
-			qsort(array, arraysize, blocksize * sizeof(cell), sort_ints_desc);
-		}
-	}
-	else if (type == Sort_Float)
-	{
-		if (order == Sort_Ascending)
-		{
-			qsort(array, arraysize, blocksize * sizeof(cell), sort_floats_asc);
-		}
-		else 
-		{
-			qsort(array, arraysize, blocksize * sizeof(cell), sort_floats_desc);
-		}
-	}
-	else if (type == Sort_String)
-	{
-		if (order == Sort_Ascending)
-		{
-			qsort(array, arraysize, blocksize * sizeof(cell), sort_adtarray_strings_asc);
-		}
-		else 
-		{
-			qsort(array, arraysize, blocksize * sizeof(cell), sort_adtarray_strings_desc);
-		}
-	}
-
-	return 1;
-}
-
-
 AMX_NATIVE_INFO g_SortNatives[] = 
 {
 	{"SortIntegers",			SortIntegers},
@@ -508,7 +355,6 @@ AMX_NATIVE_INFO g_SortNatives[] =
 	{"SortStrings",				SortStrings},
 	{"SortCustom1D",			SortCustom1D},
 	{"SortCustom2D",			SortCustom2D},
-	{"SortADTArray",			SortADTArray},
 
 	{NULL,						NULL},
 };

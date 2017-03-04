@@ -1,17 +1,39 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation, 
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve, 
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #include "amxmodx.h"
 #include "debugger.h"
 #include "binlog.h"
 
-CForward::CForward(const char *name, ForwardExecType et, int numParams, const ForwardParam *paramTypes)
+CForward::CForward(const char *name, ForwardExecType et, int numParams, const ForwardParam *paramTypes, int fwd_type)
 {
 	m_FuncName = name;
 	m_ExecType = et;
@@ -25,16 +47,23 @@ CForward::CForward(const char *name, ForwardExecType et, int numParams, const Fo
 	
 	for (CPluginMngr::iterator iter = g_plugins.begin(); iter; ++iter)
 	{
+		if ((fwd_type != FORWARD_ALL) &&
+			((fwd_type == FORWARD_ONLY_NEW && ((*iter).getAMX()->flags & AMX_FLAG_OLDFILE))
+			|| (fwd_type == FORWARD_ONLY_OLD && !((*iter).getAMX()->flags & AMX_FLAG_OLDFILE))
+			))
+		{
+			continue;
+		}
 		if ((*iter).isValid() && amx_FindPublic((*iter).getAMX(), name, &func) == AMX_ERR_NONE)
 		{
 			AMXForward tmp;
 			tmp.pPlugin = &(*iter);
 			tmp.func = func;
-			m_Funcs.append(tmp);
+			m_Funcs.push_back(tmp);
 		}
 	}
 
-	m_Name = name;
+	m_Name.assign(name);
 }
 
 cell CForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
@@ -46,20 +75,20 @@ cell CForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 
 	cell globRetVal = 0;
 
-	for (size_t i = 0; i < m_Funcs.length(); ++i)
-	{
-		auto iter = &m_Funcs[i];
+	AMXForwardList::iterator iter;
 
+	for (iter = m_Funcs.begin(); iter != m_Funcs.end(); iter++)
+	{
 		if (iter->pPlugin->isExecutable(iter->func))
 		{
 			// Get debug info
-			AMX *amx = iter->pPlugin->getAMX();
+			AMX *amx = (*iter).pPlugin->getAMX();
 			Debugger *pDebugger = (Debugger *)amx->userdata[UD_DEBUGGER];
 			
 			if (pDebugger)
 				pDebugger->BeginExec();
 			
-			// handle strings & arrays & values by reference
+			// handle strings & arrays
 			int i;
 			
 			for (i = 0; i < m_NumParams; ++i)
@@ -70,7 +99,7 @@ cell CForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 					cell *tmp;
 					if (!str)
 						str = "";
-					amx_Allot(amx, (m_ParamTypes[i] == FP_STRING) ? strlen(str) + 1 : STRINGEX_MAXLENGTH, &realParams[i], &tmp);
+					amx_Allot(iter->pPlugin->getAMX(), (m_ParamTypes[i] == FP_STRING) ? strlen(str) + 1 : STRINGEX_MAXLENGTH, &realParams[i], &tmp);
 					amx_SetStringOld(tmp, str, 0, 0);
 					physAddrs[i] = tmp;
 				}
@@ -89,24 +118,7 @@ cell CForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 						for (unsigned int j = 0; j < preparedArrays[params[i]].size; ++j)
 							*tmp++ = (static_cast<cell>(*data++)) & 0xFF;
 					}
-				}
-				else if (m_ParamTypes[i] == FP_CELL_BYREF || m_ParamTypes[i] == FP_FLOAT_BYREF)
-				{
-					cell *tmp;
-					amx_Allot(amx, 1, &realParams[i], &tmp);
-					physAddrs[i] = tmp;
-
-					if (m_ParamTypes[i] == FP_CELL_BYREF)
-					{
-						memcpy(tmp, reinterpret_cast<cell *>(params[i]), sizeof(cell));
-					}
-					else
-					{
-						memcpy(tmp, reinterpret_cast<REAL *>(params[i]), sizeof(REAL));
-					}
-				}
-				else
-				{
+				} else {
 					realParams[i] = params[i];
 				}
 			}
@@ -120,7 +132,7 @@ cell CForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 			// exec
 			cell retVal = 0;
 #if defined BINLOG_ENABLED
-			g_BinLog.WriteOp(BinLog_CallPubFunc, iter->pPlugin->getId(), iter->func);
+			g_BinLog.WriteOp(BinLog_CallPubFunc, (*iter).pPlugin->getId(), iter->func);
 #endif
 			int err = amx_Exec(amx, &retVal, iter->func);
 			
@@ -144,18 +156,18 @@ cell CForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 			if (pDebugger)
 				pDebugger->EndExec();
 
-			// cleanup strings & arrays & values by reference
+			// cleanup strings & arrays
 			for (i = 0; i < m_NumParams; ++i)
 			{
 				if (m_ParamTypes[i] == FP_STRING)
 				{
-					amx_Release(amx, realParams[i]);
+					amx_Release(iter->pPlugin->getAMX(), realParams[i]);
 				}
 				else if (m_ParamTypes[i] == FP_STRINGEX)
 				{
 					// copy back
 					amx_GetStringOld(reinterpret_cast<char*>(params[i]), physAddrs[i], 0);
-					amx_Release(amx, realParams[i]);
+					amx_Release(iter->pPlugin->getAMX(), realParams[i]);
 				}
 				else if (m_ParamTypes[i] == FP_ARRAY)
 				{
@@ -173,21 +185,7 @@ cell CForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 								*data++ = static_cast<char>(*tmp++ & 0xFF);
 						}
 					}
-					amx_Release(amx, realParams[i]);
-				}
-				else if (m_ParamTypes[i] == FP_CELL_BYREF || m_ParamTypes[i] == FP_FLOAT_BYREF)
-				{
-					//copy back
-					cell *tmp = physAddrs[i];
-					if (m_ParamTypes[i] == FP_CELL_BYREF)
-					{
-						memcpy(reinterpret_cast<cell *>(params[i]), tmp, sizeof(cell));
-					}
-					else
-					{
-						memcpy(reinterpret_cast<REAL *>(params[i]), tmp, sizeof(REAL));
-					}
-					amx_Release(amx, realParams[i]);
+					amx_Release(iter->pPlugin->getAMX(), realParams[i]);
 				}
 			}
 
@@ -227,7 +225,7 @@ void CSPForward::Set(int func, AMX *amx, int numParams, const ForwardParam *para
 	isFree = false;
 	name[0] = '\0';
 	amx_GetPublic(amx, func, name);
-	m_Name = name;
+	m_Name.assign(name);
 	m_ToDelete = false;
 	m_InExec = false;
 }
@@ -239,7 +237,7 @@ void CSPForward::Set(const char *funcName, AMX *amx, int numParams, const Forwar
 	memcpy((void *)m_ParamTypes, paramTypes, numParams * sizeof(ForwardParam));
 	m_HasFunc = (amx_FindPublic(amx, funcName, &m_Func) == AMX_ERR_NONE);
 	isFree = false;
-	m_Name = funcName;
+	m_Name.assign(funcName);
 	m_ToDelete = false;
 	m_InExec = false;
 }
@@ -267,7 +265,7 @@ cell CSPForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 	if (pDebugger)
 		pDebugger->BeginExec();
 
-	// handle strings & arrays & values by reference
+	// handle strings & arrays
 	int i;
 	
 	for (i = 0; i < m_NumParams; ++i)
@@ -297,24 +295,7 @@ cell CSPForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 				for (unsigned int j = 0; j < preparedArrays[params[i]].size; ++j)
 					*tmp++ = (static_cast<cell>(*data++)) & 0xFF;
 			}
-		}
-		else if (m_ParamTypes[i] == FP_CELL_BYREF || m_ParamTypes[i] == FP_FLOAT_BYREF)
-		{
-			cell *tmp;
-			amx_Allot(m_Amx, 1, &realParams[i], &tmp);
-			physAddrs[i] = tmp;
-
-			if (m_ParamTypes[i] == FP_CELL_BYREF)
-			{
-				memcpy(tmp, reinterpret_cast<cell *>(params[i]), sizeof(cell));
-			}
-			else
-			{
-				memcpy(tmp, reinterpret_cast<REAL *>(params[i]), sizeof(REAL));
-			}
-		}
-		else
-		{
+		} else {
 			realParams[i] = params[i];
 		}
 	}
@@ -348,7 +329,7 @@ cell CSPForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 	
 	m_Amx->error = AMX_ERR_NONE;
 
-	// cleanup strings & arrays & values by reference
+	// cleanup strings & arrays
 	for (i = 0; i < m_NumParams; ++i)
 	{
 		if (m_ParamTypes[i] == FP_STRING)
@@ -379,20 +360,6 @@ cell CSPForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 			}
 			amx_Release(m_Amx, realParams[i]);
 		}
-		else if (m_ParamTypes[i] == FP_CELL_BYREF || m_ParamTypes[i] == FP_FLOAT_BYREF)
-		{
-			//copy back
-			cell *tmp = physAddrs[i];
-			if (m_ParamTypes[i] == FP_CELL_BYREF)
-			{
-				memcpy(reinterpret_cast<cell *>(params[i]), tmp, sizeof(cell));
-			}
-			else
-			{
-				memcpy(reinterpret_cast<REAL *>(params[i]), tmp, sizeof(REAL));
-			}
-			amx_Release(m_Amx, realParams[i]);
-		}
 	}
 
 	m_InExec = false;
@@ -400,17 +367,17 @@ cell CSPForward::execute(cell *params, ForwardPreparedArray *preparedArrays)
 	return retVal;
 }
 
-int CForwardMngr::registerForward(const char *funcName, ForwardExecType et, int numParams, const ForwardParam * paramTypes)
+int CForwardMngr::registerForward(const char *funcName, ForwardExecType et, int numParams, const ForwardParam * paramTypes, int fwd_type)
 {
-	int retVal = m_Forwards.length() << 1;
-	CForward *tmp = new CForward(funcName, et, numParams, paramTypes);
+	int retVal = m_Forwards.size() << 1;
+	CForward *tmp = new CForward(funcName, et, numParams, paramTypes, fwd_type);
 	
 	if (!tmp)
 	{
 		return -1;				// should be invalid
 	}
 	
-	m_Forwards.append(tmp);
+	m_Forwards.push_back(tmp);
 	
 	return retVal;
 }
@@ -431,7 +398,7 @@ int CForwardMngr::registerSPForward(int func, AMX *amx, int numParams, const For
 		
 		m_FreeSPForwards.pop();
 	} else {
-		retVal = (m_SPForwards.length() << 1) | 1;
+		retVal = (m_SPForwards.size() << 1) | 1;
 		pForward = new CSPForward();
 		
 		if (!pForward)
@@ -445,7 +412,7 @@ int CForwardMngr::registerSPForward(int func, AMX *amx, int numParams, const For
 			delete pForward;
 		}
 					 
-		m_SPForwards.append(pForward);
+		m_SPForwards.push_back(pForward);
 	}
 	
 	return retVal;
@@ -453,7 +420,7 @@ int CForwardMngr::registerSPForward(int func, AMX *amx, int numParams, const For
 
 int CForwardMngr::registerSPForward(const char *funcName, AMX *amx, int numParams, const ForwardParam *paramTypes)
 {
-	int retVal = (m_SPForwards.length() << 1) | 1;
+	int retVal = (m_SPForwards.size() << 1) | 1;
 	CSPForward *pForward;
 	
 	if (!m_FreeSPForwards.empty())
@@ -480,7 +447,7 @@ int CForwardMngr::registerSPForward(const char *funcName, AMX *amx, int numParam
 			return -1;
 		}
 		
-		m_SPForwards.append(pForward);
+		m_SPForwards.push_back(pForward);
 	}
 	
 	return retVal;
@@ -488,7 +455,7 @@ int CForwardMngr::registerSPForward(const char *funcName, AMX *amx, int numParam
 
 bool CForwardMngr::isIdValid(int id) const
 {
-	return (id >= 0) && ((id & 1) ? (static_cast<size_t>(id >> 1) < m_SPForwards.length()) : (static_cast<size_t>(id >> 1) < m_Forwards.length()));
+	return (id >= 0) && ((id & 1) ? (static_cast<size_t>(id >> 1) < m_SPForwards.size()) : (static_cast<size_t>(id >> 1) < m_Forwards.size()));
 }
 
 cell CForwardMngr::executeForwards(int id, cell *params)
@@ -546,26 +513,24 @@ ForwardParam CForwardMngr::getParamType(int id, int paramNum) const
 
 void CForwardMngr::clear()
 {
-	size_t i;
-
-	for (i = 0; i < m_Forwards.length(); ++i)
+	for (ForwardVec::iterator iter = m_Forwards.begin(); iter != m_Forwards.end(); ++iter)
 	{
-		delete m_Forwards[i];
+		delete *iter;
 	}
-
-	for (i = 0; i < m_SPForwards.length(); ++i)
+	
+	SPForwardVec::iterator spIter;
+	
+	for (spIter = m_SPForwards.begin(); spIter != m_SPForwards.end(); ++spIter)
 	{
-		delete m_SPForwards[i];
+		delete (*spIter);
 	}
 
 	m_Forwards.clear();
 	m_SPForwards.clear();
 	
 	while (!m_FreeSPForwards.empty())
-	{
 		m_FreeSPForwards.pop();
-	}
-
+	
 	m_TmpArraysNum = 0;
 }
 
@@ -625,7 +590,7 @@ int CForwardMngr::isSameSPForward(int id1, int id2)
 			&& (fwd1->m_NumParams == fwd2->m_NumParams));
 }
 
-int registerForwardC(const char *funcName, ForwardExecType et, cell *list, size_t num)
+int registerForwardC(const char *funcName, ForwardExecType et, cell *list, size_t num, int fwd_type)
 {
 	ForwardParam params[FORWARD_MAX_PARAMS];
 	
@@ -634,7 +599,7 @@ int registerForwardC(const char *funcName, ForwardExecType et, cell *list, size_
 		params[i] = static_cast<ForwardParam>(list[i]);
 	}
 	
-	return g_forwards.registerForward(funcName, et, num, params);
+	return g_forwards.registerForward(funcName, et, num, params, fwd_type);
 }
 
 int registerForward(const char *funcName, ForwardExecType et, ...)
@@ -745,26 +710,13 @@ cell executeForwards(int id, ...)
 	
 	va_list argptr;
 	va_start(argptr, id);
-
-	ForwardParam param_type;
 	
 	for (int i = 0; i < paramsNum && i < FORWARD_MAX_PARAMS; ++i)
 	{
-		param_type = g_forwards.getParamType(id, i);
-		if (param_type == FP_FLOAT)
+		if (g_forwards.getParamType(id, i) == FP_FLOAT)
 		{
 			REAL tmp = (REAL)va_arg(argptr, double);			// floats get converted to doubles
-			params[i] = amx_ftoc(tmp);
-		}
-		else if(param_type == FP_FLOAT_BYREF)
-		{
-			REAL *tmp = reinterpret_cast<REAL *>(va_arg(argptr, double*));
-			params[i] = reinterpret_cast<cell>(tmp);
-		}
-		else if(param_type == FP_CELL_BYREF)
-		{
-			cell *tmp = reinterpret_cast<cell *>(va_arg(argptr, cell*));
-			params[i] = reinterpret_cast<cell>(tmp);
+			params[i] = *(cell*)&tmp;
 		}
 		else
 			params[i] = (cell)va_arg(argptr, cell);

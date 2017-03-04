@@ -20,7 +20,7 @@
 #include <stdlib.h>     /* for atof() */
 #include <stdio.h>      /* for NULL */
 #include <assert.h>
-#include <cmath>
+#include <math.h>
 
 // this file does not include amxmodx.h, so we have to include the memory manager here
 #ifdef MEMORY_TEST

@@ -1,12 +1,3 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
-
 #if defined BINLOG_ENABLED
 
 #include <time.h>
@@ -48,7 +39,7 @@ int LookupFile(AMX_DBG *amxdbg, ucell address)
 
 bool BinLog::Open()
 {
-	const char *data = get_localinfo("amxmodx_datadir", "addons/amxmodx/data");
+	const char *data = get_localinfo("amxmodx_datadir", "extension/data");
 	char path[255];
 	build_pathname_r(path, sizeof(path)-1, "%s/binlogs", data);
 	
@@ -82,12 +73,12 @@ bool BinLog::Open()
 		fclose(lastlog);
 	}
 	build_pathname_r(file, sizeof(file)-1, "%s/binlogs/binlog%04d.blg", data, lastcntr);
-	m_logfile = file;
+	m_logfile.assign(file);
 
 	/**
 	* it's now safe to create the binary log
 	*/
-	FILE *fp = fopen(m_logfile.chars(), "wb");
+	FILE *fp = fopen(m_logfile.c_str(), "wb");
 	if (!fp)
 		return false;
 
@@ -119,7 +110,7 @@ void BinLog::WriteOp(BinLogOp op, int plug, ...)
 	if (!m_state)
 		return;
 
-	FILE *fp = fopen(m_logfile.chars(), "ab");
+	FILE *fp = fopen(m_logfile.c_str(), "ab");
 	if (!fp)
 		return;
 
@@ -131,7 +122,7 @@ void BinLog::WriteOp(BinLogOp op, int plug, ...)
 			fclose(fp);
 			Close();
 			Open();
-			fp = fopen(m_logfile.chars(), "ab");
+			fp = fopen(m_logfile.c_str(), "ab");
 			if (!fp)
 				return;
 		}

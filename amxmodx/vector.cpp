@@ -1,11 +1,33 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #include "amxmodx.h"
 
@@ -39,50 +61,35 @@ static cell AMX_NATIVE_CALL get_distance_f(AMX *amx, cell *params)
 	return amx_ftoc(fDist);
 }
 
-static cell AMX_NATIVE_CALL VelocityByAim(AMX *amx, cell *params)
+#define M_PI 3.14159265358979323846
+void VectorAngles( const vec3_t forward, vec3_t angles )
 {
-	int iEnt = params[1];
-	int iVelocity = params[2];
-	cell *vRet = get_amxaddr(amx, params[3]);
-	Vector vVector = Vector(0, 0, 0);
-	edict_t *pEnt = NULL;
+	float	tmp, yaw, pitch;
 
-	if (iEnt < 0 || iEnt > gpGlobals->maxEntities)
+	if (forward[1] == 0 && forward[0] == 0)
 	{
-		LogError(amx, AMX_ERR_NATIVE, "Entity out of range (%d)", iEnt);
-		return 0;
+		yaw = 0;
+		if (forward[2] > 0)
+			pitch = 90;
+		else
+			pitch = 270;
 	}
 	else
 	{
-		if (iEnt > 0 && iEnt <= gpGlobals->maxClients)
-		{
-			if (!GET_PLAYER_POINTER_I(iEnt)->ingame)
-			{
-				LogError(amx, AMX_ERR_NATIVE, "Invalid player %d (not ingame)", iEnt);
-				return 0;
-			}
-			pEnt = GET_PLAYER_POINTER_I(iEnt)->pEdict;
-		} else {
-			pEnt = TypeConversion.id_to_edict(iEnt);
-		}
+		yaw = (atan2(forward[1], forward[0]) * 180 / M_PI);
+		if (yaw < 0)
+			yaw += 360;
+
+		tmp = sqrt (forward[0]*forward[0] + forward[1]*forward[1]);
+		pitch = (atan2(forward[2], tmp) * 180 / M_PI);
+		if (pitch < 0)
+			pitch += 360;
 	}
 
-	if (!pEnt)
-	{
-		LogError(amx, AMX_ERR_NATIVE, "Invalid entity %d (nullent)", iEnt);
-		return 0;
-	}
-
-	MAKE_VECTORS(pEnt->v.v_angle);
-	vVector = gpGlobals->v_forward * iVelocity;
-
-	vRet[0] = FloatToCell(vVector.x);
-	vRet[1] = FloatToCell(vVector.y);
-	vRet[2] = FloatToCell(vVector.z);
-
-	return 1;
+	angles[0] = pitch;
+	angles[1] = yaw;
+	angles[2] = 0;
 }
-
 static cell AMX_NATIVE_CALL vector_to_angle(AMX *amx, cell *params)
 {
 	cell *cAddr = get_amxaddr(amx, params[1]);
@@ -93,7 +100,8 @@ static cell AMX_NATIVE_CALL vector_to_angle(AMX *amx, cell *params)
 
 	Vector vVector = Vector(fX, fY, fZ);
 	Vector vAngle = Vector(0, 0, 0);
-	VEC_TO_ANGLES(vVector, vAngle);
+
+	VectorAngles(vVector, vAngle);
 
 	cell *vRet = get_amxaddr(amx, params[2]);
 
@@ -113,7 +121,7 @@ static cell AMX_NATIVE_CALL angle_vector(AMX *amx, cell *params)
 	v_angles.y = amx_ctof(vCell[1]);
 	v_angles.z = amx_ctof(vCell[2]);
 
-	g_engfuncs.pfnAngleVectors(v_angles, v_forward, v_right, v_up);
+	gEngfuncs.pfnAngleVectors(v_angles, v_forward, v_right, v_up);
 
 	switch (params[2])
 	{
@@ -174,7 +182,6 @@ static cell AMX_NATIVE_CALL vector_distance(AMX *amx, cell *params)
 AMX_NATIVE_INFO vector_Natives[] = {
 	{"get_distance",		get_distance},
 	{"get_distance_f",		get_distance_f},
-	{"velocity_by_aim",		VelocityByAim},
 	{"vector_to_angle",		vector_to_angle},
 	{"angle_vector",		angle_vector},
 	{"vector_length",		vector_length},

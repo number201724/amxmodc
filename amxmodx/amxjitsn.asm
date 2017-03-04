@@ -6,14 +6,6 @@
 ; (27 disks, no output, DOS4/GW under Win95) with this implementation of the
 ; JIT compiler.
 
-; BUILD NOTE: Use nasm 0.97.x or 0.98.x with the options below.
-; ----------------
-; Windows  : nasm -O2 -f win32 -o amxjitsn.obj amxjitsn.asm
-; Linux    : nasm -O2 -f elf -o amxjitsn.o amxjitsn.asm
-; OS X     : nasm -O2 -f macho -o amxjitsn-darwin.o amxjitsn.asm
-; ----------------
-; If nasm 2.x must be used, replace -O2 with -O0.
-
 ; NOTE 1:
 ; There is only one pass implemented in this version. This means there is no
 ; way of knowing the size of the compiled code before it has actually been com-
@@ -98,9 +90,6 @@
 
 ; Revision History
 ; ----------------
-; 24 february 2013 by Scott Ehlert
-;       Aligned stack to 16-byte boundary for native calls in case they make library
-;       calls on Mac OS X or use SSE instructions.
 ; 16 august 2005 by David "BAILOPAN" Anderson (DA)
 ;		Changed JIT to not swap stack pointer during execution.  This 
 ;		is playing with fire, especially with pthreads and signals on linux,
@@ -312,32 +301,6 @@
     %ifndef STDECL               ; (for __cdecl calling convention only)
         add     esp,%1
     %endif
-%endmacro
-
-%macro  _STK_ALIGN 1            ; align stack to 16-byte boundary and
-                                ; allocate %1 bytes of stack space
-                                ; top of stack allocation will hold original esp
-    %if %1 % 16 != 0
-        %error "expected 16-byte aligned value"
-    %endif
-
-    %push stkalign
-    %assign stkspace %1
-
-    mov      ebp, esp
-    and      esp, 0xFFFFFFF0
-    sub      esp, %1
-    mov      [esp+%1-4], ebp
-%endmacro
-
-%macro _STK_RESTORE 0           ; restore stack pointer after 16-byte alignment
-    %ifnctx stkalign
-        %fatal "expected _STK_ALIGN before _STK_RESTORE"
-    %endif
-
-    mov      esp, [esp+stkspace-4]
-
-    %pop
 %endmacro
 
 global  asm_runJIT, _asm_runJIT
@@ -1979,20 +1942,22 @@ OP_FLOAT_ROUND:
 		;set the bits
 		or      ah,dl	;set bits 15,14 of FCW to rounding method
 		or      ah,3	;set precision to 64bit
-
+		mov     [ebp], eax
+		fldcw   [ebp]
 		;calculate
 		sub     esp,4
 		fld     dword [esi+4]
 		test    edx,edx
-		jnz     .skip_correct
-		;nearest mode
-		;correct so as to AVOID bankers rounding
-		or      ah, 4   ;set rounding mode to floor
+		jz      .correct
+		jmp     .skip_correct
+	.correct:
+		fadd    st0
 		fadd    dword [g_round_nearest]
-
+		fistp   dword [esp]
+		pop     eax
+		sar     eax,1
+		jmp     .done
 	.skip_correct:
-		mov     [ebp], eax
-		fldcw   [ebp]
 		frndint
 		fistp   dword [esp]
 		pop     eax
@@ -2273,10 +2238,8 @@ err_divide:
         jmp     _return_popstack
 
 JIT_OP_SYSREQ:
-        _STK_ALIGN 32           ; align stack to 16-byte boundary and
-                                ; allocate 32 bytes of stack space
-        mov     [esp+16], ecx
-        mov     [esp+12], esi
+        push	ecx
+        push	esi
         mov     ebp,amx         ; get amx into EBP
 
         sub     esi,edi         ; correct STK
@@ -2291,15 +2254,14 @@ JIT_OP_SYSREQ:
         lea     ebx,pri         ; 3rd param: addr. of retval
 
         ;Our original esi is still pushed!
-        mov     [esp+08], ebx
-        mov     [esp+04], eax   ; 2nd param: function number
-        mov     [esp], ebp      ; 1st param: amx
+        push    ebx
+        push    eax             ; 2nd param: function number
+        push    ebp             ; 1st param: amx
         call    [ebp+_callback]
+        _DROPARGS 12            ; remove args from stack
         
-        mov     esi, [esp+12]   ; restore esi
-        mov     ecx, [esp+16]   ; restore ecx
-        _STK_RESTORE            ; restore stack pointer
-
+		pop		esi
+        pop		ecx
         cmp     eax,AMX_ERR_NONE
         jne		_return_popstack
 .continue:
@@ -2311,10 +2273,8 @@ JIT_OP_SYSREQ:
 
 
 JIT_OP_SYSREQ_D:                ; (TR)
-        _STK_ALIGN 16           ; align stack to 16-byte boundary and
-                                ; allocate 16 bytes of stack space
-        mov     [esp+08], ecx
-        mov     [esp+04], esi
+        push	ecx
+        push	esi
         mov     ebp,amx         ; get amx into EBP
 
         sub     esi,edi         ; correct STK
@@ -2327,12 +2287,11 @@ JIT_OP_SYSREQ_D:                ; (TR)
         mov     [ebp+_frm],eax  ; eax & ecx are invalid by now
 
         ;esi is still pushed!
-        mov     [esp], ebp      ; 1st param: amx
+        push    ebp             ; 1st param: amx
         call    ebx             ; direct call
-
-        mov     ecx, [esp+08]   ; restore ecx
-        _STK_RESTORE            ; restore stack pointer
-
+        _DROPARGS 8             ; remove args from stack
+        
+        pop		ecx
         mov     ebp,amx         ; get amx into EBP
         cmp     dword [ebp+_error],AMX_ERR_NONE
         jne     _return_popstack; return error code, if any
@@ -2346,10 +2305,8 @@ JIT_OP_SYSREQ_D:                ; (TR)
 
 JIT_OP_BREAK:
 %ifdef DEBUGSUPPORT
-        _STK_ALIGN 16           ; align stack to 16-byte boundary and
-                                ; allocate 16 bytes of stack space
-        mov     [esp+08], ecx
-        mov     [esp+04], esi
+        push	ecx
+        push	esi
         mov     ebp,amx         ; get amx into EBP
 
         sub     esi,edi         ; correct STK
@@ -2363,13 +2320,12 @@ JIT_OP_BREAK:
         mov     [ebp+_frm],ebx  ; EBX & ECX are invalid by now
         ;??? storing CIP is not very useful, because the code changed (during JIT compile)
 
-        mov     [esp], ebp      ; 1st param: amx
+        push    ebp             ; 1st param: amx
         call    [ebp+_debug]
+        _DROPARGS 4             ; remove args from stack
 
-        mov esi, [esp+04]       ; restore esi
-        mov ecx, [esp+08]       ; restore ecx
-        _STK_RESTORE            ; restore stack pointer
-
+        pop		esi
+        pop		ecx
         cmp     eax,AMX_ERR_NONE
         jne     _return_popstack; return error code, if any
 

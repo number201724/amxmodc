@@ -17,6 +17,8 @@
  *  2.  Altered source versions must be plainly marked as such, and must not be
  *      misrepresented as being the original software.
  *  3.  This notice may not be removed or altered from any source distribution.
+ *
+ *  Version: $Id: amx.h 3736 2008-08-16 20:13:12Z damagedsoul $
  */
 
 #ifdef _MSC_VER
@@ -32,7 +34,7 @@
   #define __FreeBSD__
 #endif
 #if defined LINUX || defined __FreeBSD__ || defined __OpenBSD__ || defined __APPLE__
-  #include "sclinux.h"
+  #include <sclinux.h>
 #endif
 
 #ifndef AMX_H_INCLUDED
@@ -215,7 +217,7 @@ typedef struct tagAMX_NATIVE_INFO {
 
 #define AMX_USERNUM     4
 #define sEXPMAX         19      /* maximum name length for file version <= 6 */
-#define sNAMEMAX        63      /* maximum name length of symbol name */
+#define sNAMEMAX        31      /* maximum name length of symbol name */
 
 typedef struct tagAMX_FUNCSTUB {
   ucell address         PACKED;

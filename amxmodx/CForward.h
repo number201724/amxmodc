@@ -1,11 +1,33 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 /*
 	CForward.h
@@ -29,6 +51,10 @@
 
 const int FORWARD_MAX_PARAMS = 32;
 
+#define FORWARD_ONLY_OLD	1
+#define FORWARD_ONLY_NEW	2
+#define FORWARD_ALL			3
+
 enum ForwardExecType
 {
 	ET_IGNORE = 0,					// Ignore return vaue
@@ -46,8 +72,6 @@ enum ForwardParam
 	FP_STRING,						// string
 	FP_STRINGEX,					// string; will be updated to the last function's value
 	FP_ARRAY,						// array; use the return value of prepareArray.
-	FP_CELL_BYREF,                  // cell; pass by reference
-	FP_FLOAT_BYREF,                 // float; pass by reference
 };
 
 // for prepareArray
@@ -73,7 +97,7 @@ class CForward
 	const char *m_FuncName;
 	ForwardExecType m_ExecType;
 	int m_NumParams;
-	ke::AString m_Name;
+	String m_Name;
 	
 	struct AMXForward
 	{
@@ -81,13 +105,13 @@ class CForward
 		int func;
 	};
 	
-	typedef ke::Vector<AMXForward> AMXForwardList;
+	typedef CVector<AMXForward> AMXForwardList;
 	
 	AMXForwardList m_Funcs;
 	ForwardParam m_ParamTypes[FORWARD_MAX_PARAMS];
 
 public:
-	CForward(const char *name, ForwardExecType et, int numParams, const ForwardParam * paramTypes);
+	CForward(const char *name, ForwardExecType et, int numParams, const ForwardParam * paramTypes, int fwd_type=FORWARD_ALL);
 	CForward() {}		// leaves everything unitialized'
 	
 	cell execute(cell *params, ForwardPreparedArray *preparedArrays);
@@ -99,12 +123,12 @@ public:
 	
 	int getFuncsNum() const
 	{
-		return m_Funcs.length();
+		return m_Funcs.size();
 	}
 
 	const char *getFuncName() const
 	{
-		return m_Name.chars();
+		return m_Name.c_str();
 	}
 	
 	ForwardParam getParamType(int paramId) const
@@ -127,7 +151,7 @@ class CSPForward
 	
 	int m_Func;
 	bool m_HasFunc;
-	ke::AString m_Name;
+	String m_Name;
 	bool m_InExec;
 	bool m_ToDelete;
 
@@ -152,7 +176,7 @@ public:
 
 	const char *getFuncName() const
 	{
-		return m_Name.chars();
+		return m_Name.c_str();
 	}
 	
 	ForwardParam getParamType(int paramId) const
@@ -166,8 +190,8 @@ public:
 
 class CForwardMngr
 {
-	typedef ke::Vector<CForward*> ForwardVec;
-	typedef ke::Vector<CSPForward*> SPForwardVec;
+	typedef CVector<CForward*> ForwardVec;
+	typedef CVector<CSPForward*> SPForwardVec;
 	typedef CStack<int> FreeSPVec;							// Free SP Forwards
 
 	ForwardVec m_Forwards;
@@ -185,7 +209,7 @@ public:
 
 	// Interface
 	// Register normal forward
-	int registerForward(const char *funcName, ForwardExecType et, int numParams, const ForwardParam *paramTypes);
+	int registerForward(const char *funcName, ForwardExecType et, int numParams, const ForwardParam *paramTypes, int fwd_type=FORWARD_ALL);
 	// Register single plugin forward
 	int registerSPForward(const char *funcName, AMX *amx, int numParams, const ForwardParam * paramTypes);
 	int registerSPForward(int func, AMX *amx, int numParams, const ForwardParam * paramTypes);
@@ -211,7 +235,7 @@ public:
 
 // (un)register forward
 int registerForward(const char *funcName, ForwardExecType et, ...);
-int registerForwardC(const char *funcName, ForwardExecType et, cell *list, size_t num);
+int registerForwardC(const char *funcName, ForwardExecType et, cell *list, size_t num, int fwd_type=FORWARD_ALL);
 int registerSPForwardByName(AMX *amx, const char *funcName, ...);
 int registerSPForwardByNameC(AMX *amx, const char *funcName, cell *list, size_t num);
 int registerSPForward(AMX *amx, int func, ...);

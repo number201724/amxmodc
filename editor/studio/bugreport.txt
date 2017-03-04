@@ -1,0 +1,768 @@
+date/time         : 2017-03-03, 15:47:22, 563ms
+computer name     : DESKTOP-5LTR2C0
+user name         : 201724
+operating system  : Windows NT New build 9200
+system language   : Chinese (Simplified)
+system up time    : 53 minutes 32 seconds
+program up time   : 237 milliseconds
+processors        : 12x Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+physical memory   : 5671/8175 MB (free/total)
+free disk space   : (C:) 127.79 GB (D:) 573.52 GB
+display mode      : 1920x938, 32 bit
+process id        : $b14
+allocated memory  : 35.58 MB
+executable        : AMXX_Studio.exe
+exec. date/time   : 2013-02-14 00:51
+version           : 1.4.3.3
+madExcept version : 3.0b
+callstack crc     : $02e918a1, $1d230567, $1d230567
+exception number  : 1
+exception class   : EFOpenError
+exception message : Datei D:\amxmodx-amxmodx-1.8.2\editor\studio\config\ACList.cfg kann nicht ge?ffnet werden. 系统找不到指定的路径。.
+
+main thread ($834):
+0046b28d +109 AMXX_Studio.exe Classes              TFileStream.Create
+0046b160 +020 AMXX_Studio.exe Classes              TFileStream.Create
+00684fd4 +01c AMXX_Studio.exe UnitACCheck   91  +2 TJsCollection.LoadFromFile
+0069a486 +0ca AMXX_Studio.exe UnitfrmMain 2925  +8 TfrmMain.FormCreate
+004d73f1 +031 AMXX_Studio.exe Forms       2648  +3 TCustomForm.DoCreate
+004d70d1 +011 AMXX_Studio.exe Forms       2575  +1 TCustomForm.AfterConstruction
+00404223 +007 AMXX_Studio.exe System               @AfterConstruction
+004d70a8 +174 AMXX_Studio.exe Forms       2569 +16 TCustomForm.Create
+004dea4d +031 AMXX_Studio.exe Forms       6947  +4 TApplication.CreateForm
+0069bcfa +0ce AMXX_Studio.exe AMXX_Studio   74 +12 initialization
+766962c2 +022 KERNEL32.DLL                         BaseThreadInitThunk
+
+thread $c7c:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $3e8:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $2760:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $12d0:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $1e90:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $1710:
+7729eb8c +0c ntdll.dll                 NtWaitForMultipleObjects
+76831b9a +ea KERNELBASE.dll            WaitForMultipleObjectsEx
+0044d639 +0d AMXX_Studio.exe madExcept CallThreadProcSafe
+0044d6a3 +37 AMXX_Studio.exe madExcept ThreadExceptFrame
+766962c2 +22 KERNEL32.DLL              BaseThreadInitThunk
+>> created by main thread ($834) at:
+76480891 +00 combase.dll
+
+modules:
+00400000 AMXX_Studio.exe      1.4.3.3             D:\amxmodx-amxmodx-1.8.2\editor\studio
+00df0000 WINMMBASE.dll        6.2.14393.0         C:\Windows\SYSTEM32
+10000000 scilexer.dll         1.6.6.0             D:\amxmodx-amxmodx-1.8.2\editor\studio
+5a370000 olepro32.dll         6.2.14393.447       C:\Windows\SYSTEM32
+5bbc0000 apphelp.dll          6.2.14393.0         C:\Windows\system32
+5f9e0000 winspool.drv         6.2.14393.0         C:\Windows\SYSTEM32
+63f80000 msimg32.dll          6.2.14393.0         C:\Windows\SYSTEM32
+66360000 twinapi.appcore.dll  6.2.14393.206       C:\Windows\system32
+66460000 dxgi.dll             6.2.14393.479       C:\Windows\system32
+664f0000 d3d11.dll            6.2.14393.479       C:\Windows\system32
+66720000 dcomp.dll            6.2.14393.0         C:\Windows\system32
+66840000 dataexchange.dll     6.2.14393.206       C:\Windows\system32
+6cea0000 comctl32.DLL         6.10.14393.447      C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_6.0.14393.447_none_89c64d28dafea4b9
+6dc90000 uxtheme.dll          6.2.14393.0         C:\Windows\system32
+71ca0000 dwmapi.dll           6.2.14393.206       C:\Windows\system32
+71ff0000 bcrypt.dll           6.2.14393.576       C:\Windows\SYSTEM32
+72080000 wsock32.dll          6.2.14393.0         C:\Windows\SYSTEM32
+720b0000 comctl32.dll         5.82.14393.447      C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_5.82.14393.447_none_5507ded2cb4f7f4c
+73070000 version.dll          6.2.14393.0         C:\Windows\SYSTEM32
+732d0000 winmm.dll            6.2.14393.0         C:\Windows\SYSTEM32
+73ce0000 CRYPTBASE.dll        6.2.14393.0         C:\Windows\System32
+73cf0000 SspiCli.dll          6.2.14393.576       C:\Windows\System32
+73d10000 win32u.dll           6.2.14393.51        C:\Windows\System32
+73d30000 shcore.dll           6.2.14393.0         C:\Windows\System32
+73dc0000 bcryptPrimitives.dll 6.2.14393.0         C:\Windows\System32
+74250000 GDI32.dll            6.2.14393.206       C:\Windows\System32
+74280000 ole32.dll            6.2.14393.576       C:\Windows\System32
+74370000 kernel.appcore.dll   6.2.14393.0         C:\Windows\System32
+74380000 comdlg32.dll         6.2.14393.479       C:\Windows\System32
+74480000 SHELL32.dll          6.2.14393.693       C:\Windows\System32
+75860000 msvcp_win.dll        6.2.14393.0         C:\Windows\System32
+758e0000 msvcrt.dll           7.0.14393.0         C:\Windows\System32
+759a0000 cfgmgr32.dll         6.2.14393.0         C:\Windows\System32
+759e0000 imm32.dll            6.2.14393.0         C:\Windows\System32
+75a70000 RPCRT4.dll           6.2.14393.82        C:\Windows\System32
+75b40000 oleaut32.dll         6.2.14393.447       C:\Windows\System32
+75c30000 ucrtbase.dll         6.2.14393.0         C:\Windows\System32
+75d70000 gdi32full.dll        6.2.14393.576       C:\Windows\System32
+761d0000 advapi32.dll         6.2.14393.0         C:\Windows\System32
+762d0000 profapi.dll          6.2.14393.0         C:\Windows\System32
+762e0000 sechost.dll          6.2.14393.0         C:\Windows\System32
+76330000 clbcatq.dll          2001.12.10941.16384 C:\Windows\System32
+763c0000 SHLWAPI.dll          6.2.14393.0         C:\Windows\System32
+76410000 combase.dll          6.2.14393.576       C:\Windows\System32
+76630000 powrprof.dll         6.2.14393.0         C:\Windows\System32
+76680000 KERNEL32.DLL         6.2.14393.0         C:\Windows\System32
+76760000 KERNELBASE.dll       6.2.14393.479       C:\Windows\System32
+76910000 windows.storage.dll  6.2.14393.479       C:\Windows\System32
+76e80000 WS2_32.dll           6.2.14393.206       C:\Windows\System32
+76ef0000 USER32.dll           6.2.14393.576       C:\Windows\System32
+77050000 MSCTF.dll            6.2.14393.479       C:\Windows\System32
+77230000 ntdll.dll            6.2.14393.479       C:\Windows\SYSTEM32
+
+processes:
+0000 Idle                       0
+0004 System                     0
+01c4 smss.exe                   0
+0228 csrss.exe                  0
+0278 wininit.exe                0
+0280 csrss.exe                  1
+02cc winlogon.exe               1
+0300 services.exe               0
+0308 lsass.exe                  0
+0370 svchost.exe                0
+03b4 svchost.exe                0
+0078 dwm.exe                    1
+0210 svchost.exe                0
+0240 svchost.exe                0
+0244 svchost.exe                0
+0098 svchost.exe                0
+0484 WUDFHost.exe               0
+04f8 svchost.exe                0
+0560 WUDFHost.exe               0
+0570 NVDisplay.Container.exe    0
+0630 svchost.exe                0
+0744 svchost.exe                0
+07d0 svchost.exe                0
+077c spoolsv.exe                0
+087c svchost.exe                0
+0884 OfficeClickToRun.exe       0
+0894 IpOverUsbSvc.exe           0
+08e8 coherence.exe              0
+08f0 prl_tools_service.exe      0
+091c dllhost.exe                0
+0924 Service_KMS.exe            0
+094c QQProtect.exe              0
+0954 sqlwriter.exe              0
+099c vmnetdhcp.exe              0
+09ac svchost.exe                0
+09bc vmnat.exe                  0
+09c4 vmware-authd.exe           0
+09cc vmware-usbarbitrator64.exe 0
+0a20 svchost.exe                0
+0a30 svchost.exe                0
+0a70 coherence.exe              1
+0a88 svchost.exe                0
+0a98 prl_tools.exe              1
+0abc Memory Compression         0
+0b38 coherence.exe              1
+0ba8 svchost.exe                0
+0c38 dllhost.exe                0
+0ef4 msdtc.exe                  0
+0a18 WmiPrvSE.exe               0
+1080 svchost.exe                0
+10b0 svchost.exe                0
+114c vmware-hostd.exe           0
+162c sihost.exe                 1 normal       C:\Windows\System32
+1644 svchost.exe                1 normal       C:\Windows\System32
+16a4 taskhostw.exe              1 normal       C:\Windows\System32
+17cc ChsIME.exe                 1 normal       C:\Windows\System32\InputMethod\CHS
+17e4 explorer.exe               1 normal       C:\Windows
+0ba4 RuntimeBroker.exe          1 normal       C:\Windows\System32
+153c ShellExperienceHost.exe    1 normal       C:\Windows\SystemApps\ShellExperienceHost_cw5n1h2txyewy
+1830 SearchUI.exe               1 normal       C:\Windows\SystemApps\Microsoft.Windows.Cortana_cw5n1h2txyewy
+18dc SearchIndexer.exe          0
+1a54 fontdrvhost.exe            1
+1b14 prl_cc.exe                 1 normal       C:\Program Files (x86)\Parallels\Parallels Tools
+1bec GoogleCrashHandler.exe     0
+1bf4 GoogleCrashHandler64.exe   0
+15c8 OneDrive.exe               1 normal       C:\Users\201724\AppData\Local\Microsoft\OneDrive
+1aec Shadowsocks.exe            1 normal       C:\Users\201724
+19dc ss_privoxy.exe             1 normal       C:\Users\201724\ss_win_temp
+1af0 Steam.exe                  1 normal       C:\Program Files (x86)\Steam
+0adc steamwebhelper.exe         1 normal       C:\Program Files (x86)\Steam\bin\cef\cef.win7
+1a94 SteamService.exe           0
+1c28 BaiduNetdisk.exe           1 normal       C:\Users\201724\AppData\Roaming\baidu\BaiduNetdisk
+1e7c YunDetectService.exe       1 normal       C:\Users\201724\AppData\Roaming\baidu\BaiduNetdisk
+1ee8 vmware-tray.exe            1 normal       C:\Program Files (x86)\VMware\VMware Workstation
+1f2c emedtray.exe               1 normal       C:\Program Files\EmEditor
+19e4 SystemSettingsBroker.exe   1 above normal C:\Windows\System32
+0830 devenv.exe                 1 normal       C:\Program Files (x86)\Microsoft Visual Studio 10.0\Common7\IDE
+2684 MSBuild.exe                1 normal       C:\Windows\Microsoft.NET\Framework\v4.0.30319
+023c conhost.exe                1 normal       C:\Windows\System32
+0b88 dllhost.exe                1 normal       C:\Windows\System32
+269c QQ.exe                     1 normal       C:\Program Files (x86)\Tencent\QQ\Bin
+296c TXPlatform.exe             1 normal       C:\Program Files (x86)\Tencent\QQ\Bin
+1fe8 EmEditor.exe               1 normal       C:\Program Files\EmEditor
+1e8c SearchProtocolHost.exe     0
+1154 audiodg.exe                0
+2b70 vcpkgsrv.exe               1 normal       C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\vcpackages
+24d0 vcpkgsrv.exe               1 normal       C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\vcpackages
+25fc SearchFilterHost.exe       0
+27e8 mspdbsrv.exe               1 normal       C:\Program Files (x86)\Microsoft Visual Studio 10.0\Common7\IDE
+0b14 AMXX_Studio.exe            1 normal       D:\amxmodx-amxmodx-1.8.2\editor\studio
+
+hardware:
++ {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
+  - Fax
+  - Microsoft Print to PDF
+  - Microsoft XPS Document Writer
+  - Print to PDF (Mac Desktop)
+  - Send To OneNote 16
+  - 根打印队列
++ {36fc9e60-c465-11cf-8056-444553540000}
+  - Feitian ROCKEY4 (driver 5.0.9.1202)
+  - Intel(R) 82801FB/FBM USB Universal Host Controller - 2658
+  - Intel(R) 82801FB/FBM USB2 Enhanced Host Controller - 265C
+  - Renesas USB 3.0 可扩展主机控制器 - 1.0 (Microsoft)
+  - USB Root Hub
+  - USB Root Hub
+  - USB 打印支持
+  - USB 根集线器(xHCI)
++ {4d36e965-e325-11ce-bfc1-08002be10318}
+  -  Virtual DVD-ROM
++ {4d36e966-e325-11ce-bfc1-08002be10318}
+  - 基于 ACPI x64 的电脑
++ {4d36e967-e325-11ce-bfc1-08002be10318}
+  - INTEL SSDSC2BW240H6 (disk2)
+  - WDC WD1002F9YZ-09H1JL1 (disk3)
++ {4d36e968-e325-11ce-bfc1-08002be10318}
+  - Parallels Display Adapter (WDDM) (driver 12.0.41353.0)
++ {4d36e96a-e325-11ce-bfc1-08002be10318}
+  - ATA Channel 0
+  - ATA Channel 1
+  - Intel(R) 82801BA Ultra ATA Storage Controller - 244B
+  - 标准 SATA AHCI 控制器
++ {4d36e96b-e325-11ce-bfc1-08002be10318}
+  - PS/2 标准键盘
++ {4d36e96c-e325-11ce-bfc1-08002be10318}
+  - Parallels Audio Controller (driver 12.0.41353.0)
++ {4d36e96e-e325-11ce-bfc1-08002be10318}
+  - 通用非即插即用监视器
++ {4d36e96f-e325-11ce-bfc1-08002be10318}
+  - Parallels Mouse Synchronization Device (driver 12.0.41353.0)
++ {4d36e972-e325-11ce-bfc1-08002be10318}
+  - Intel(R) 82574L Gigabit Network Connection
+  - VMware Virtual Ethernet Adapter for VMnet1 (driver 4.2.7.0)
+  - VMware Virtual Ethernet Adapter for VMnet8 (driver 4.2.7.0)
++ {4d36e979-e325-11ce-bfc1-08002be10318}
+  - HPColor LaserJet 2820 2L8
++ {4d36e97b-e325-11ce-bfc1-08002be10318}
+  - Microsoft 存储空间控制器
++ {4d36e97d-e325-11ce-bfc1-08002be10318}
+  - ACPI 固定功能按钮
+  - CPU 到 IO 控制器
+  - LPC 控制器
+  - Microsoft ACPI-Compliant System
+  - Microsoft System Management BIOS Driver
+  - Microsoft 基本呈现驱动程序
+  - Microsoft 基本显示驱动程序
+  - Microsoft 虚拟驱动器枚举器
+  - NDIS 虚拟网络适配器枚举器
+  - Parallels Memory Controller (driver 12.0.41353.0)
+  - Parallels Tool Device (driver 12.0.41353.0)
+  - PCI Express 根复合体
+  - PCI 到 PCI 桥
+  - PCI 到 PCI 桥
+  - PCI 到 PCI 桥
+  - Remote Desktop Device Redirector Bus
+  - Remote Desktop USB Hub
+  - SM 总线控制器
+  - UMBus Enumerator
+  - UMBus Enumerator
+  - UMBus Enumerator
+  - UMBus Root Bus Enumerator
+  - VMware VMCI Host Device (driver 9.8.6.0)
+  - 复合总线枚举器
+  - 高精度事件计时器
+  - 即插即用软件设备枚举器
+  - 旧设备
+  - 卷管理器
+  - 可编程中断控制器
+  - 母板资源
+  - 数值数据处理器
+  - 通用总线
+  - 通用总线
+  - 通用总线
+  - 通用总线
+  - 系统 CMOS/实时时钟
+  - 系统板
+  - 系统计时器
+  - 系统扬声器
+  - 直接内存访问控制器
++ {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
++ {5175d334-c371-4806-b3ba-71fd53c9258d}
+  - Microsoft Visual Studio Location Simulator Sensor (driver 11.0.0.0)
+  - Parallels Location Provider (driver 12.0.41353.0)
++ {533c5b84-ec70-11d2-9505-00c04f79deaf}
+  - 通用卷影复制
+  - 通用卷影复制
++ {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+  - Microsoft Device Association Root Enumerator
+  - Microsoft GS 波表合成器
+  - Microsoft IPv4 IPv6 转换适配器总线
+  - Microsoft Radio Device Enumeration Bus
++ {c166523c-fe0c-4a94-a586-f1a80cfbbf3e}
+  - 麦克风 (Parallels Audio Controller)
+  - 扬声器 (Parallels Audio Controller)
+
+cpu registers:
+eax = 025f6ba0
+ebx = 025ebd84
+ecx = 00000000
+edx = 0046b292
+esi = 0261212c
+edi = 025e0000
+eip = 0046b292
+esp = 0019fc8c
+ebp = 0019fcf8
+
+stack dump:
+0019fc8c  92 b2 46 00 de fa ed 0e - 01 00 00 00 07 00 00 00  ..F.............
+0019fc9c  a0 fc 19 00 92 b2 46 00 - a0 6b 5f 02 84 bd 5e 02  ......F..k_...^.
+0019fcac  2c 21 61 02 00 00 5e 02 - f8 fc 19 00 bc fc 19 00  ,!a...^.........
+0019fcbc  08 fd 19 00 24 46 40 00 - f8 fc 19 00 b4 c9 68 00  ....$F@.......h.
+0019fccc  84 bd 5e 02 01 21 61 02 - 00 00 00 00 00 00 00 00  ..^..!a.........
+0019fcdc  00 00 00 00 00 00 00 00 - d4 2a 61 02 0b 5c 46 00  .........*a..\F.
+0019fcec  1c 2b 61 02 0b 2a 61 02 - ce 41 40 00 20 fd 19 00  .+a..*a..A@.....
+0019fcfc  65 b1 46 00 00 00 00 00 - 00 00 5e 02 40 fd 19 00  e.F.......^.@...
+0019fd0c  63 47 40 00 20 fd 19 00 - 84 bd 5e 02 2c 21 61 02  cG@.......^.,!a.
+0019fd1c  a8 2a 61 02 38 fd 19 00 - d9 4f 68 00 00 00 00 00  .*a.8....Oh.....
+0019fd2c  e4 4a 54 00 d0 8a 5c 02 - 00 00 00 00 60 fd 19 00  .JT...\.....`...
+0019fd3c  8b a4 69 00 68 fd 19 00 - 24 46 40 00 60 fd 19 00  ..i.h...$F@.`...
+0019fd4c  80 21 5c 02 d0 8a 5c 02 - 00 00 00 00 00 00 00 00  .!\...\.........
+0019fd5c  00 00 00 00 84 fd 19 00 - f7 73 4d 00 a0 fd 19 00  .........sM.....
+0019fd6c  44 44 40 00 84 fd 19 00 - b4 c9 68 00 80 21 5c 02  DD@.......h..!\.
+0019fd7c  d0 8a 5c 02 d0 8a 5c 02 - c8 fe 19 00 d7 70 4d 00  ..\...\......pM.
+0019fd8c  80 21 5c 02 d0 8a 5c 02 - 26 42 40 00 b4 c9 68 00  .!\...\.&B@...h.
+0019fd9c  ad 70 4d 00 d0 fe 19 00 - ed 41 40 00 c8 fe 19 00  .pM......A@.....
+0019fdac  d0 8a 5c 02 d0 8a 5c 02 - 00 00 00 00 01 00 00 00  ..\...\.........
+0019fdbc  00 00 00 00 00 00 00 00 - 70 00 00 00 ff ff ff ff  ........p.......
+
+disassembling:
+[...]
+00684fbd      push    esi
+00684fbe      mov     esi, edx
+00684fc0      mov     ebx, eax
+00684fc2 90   mov     eax, ebx
+00684fc4      call    -$21c0e9 ($468ee0)     ; Classes.TCollection.Clear
+00684fc4
+00684fc9 91   push    0
+00684fcb      mov     ecx, esi
+00684fcd      mov     dl, 1
+00684fcf      mov     eax, [$465c50]
+00684fd4    > call    -$219e99 ($46b140)     ; Classes.TFileStream.Create
+00684fd4
+00684fd9      mov     [ebp-4], eax
+00684fdc 92   xor     eax, eax
+00684fde      push    ebp
+00684fdf      push    $68500a                ; System.@HandleFinally
+00684fe4      push    dword ptr fs:[eax]
+00684fe7      mov     fs:[eax], esp
+00684fea 93   mov     edx, [ebp-4]
+00684fed      mov     eax, ebx
+00684fef      mov     ecx, [eax]
+[...]
+
+date/time         : 2017-03-03, 15:47:24, 389ms
+computer name     : DESKTOP-5LTR2C0
+user name         : 201724
+operating system  : Windows NT New build 9200
+system language   : Chinese (Simplified)
+system up time    : 53 minutes 33 seconds
+program up time   : 2 seconds
+processors        : 12x Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+physical memory   : 5670/8175 MB (free/total)
+free disk space   : (C:) 127.79 GB (D:) 573.52 GB
+display mode      : 1920x938, 32 bit
+process id        : $b14
+allocated memory  : 39.16 MB
+executable        : AMXX_Studio.exe
+exec. date/time   : 2013-02-14 00:51
+version           : 1.4.3.3
+madExcept version : 3.0b
+callstack crc     : $3168e053, $04763235, $04763235
+exception number  : 2
+exception class   : EIniFileException
+exception message : In D:\amxmodx-amxmodx-1.8.2\editor\studio\config\Settings.ini kann nicht geschrieben werden.
+
+main thread ($834):
+0048eb48 +05c AMXX_Studio.exe IniFiles                 TIniFile.WriteString
+0048d567 +033 AMXX_Studio.exe IniFiles                 TCustomIniFile.WriteInteger
+006870d3 +233 AMXX_Studio.exe UnitfrmSettings  366 +31 TfrmSettings.FormCreate
+004d73f1 +031 AMXX_Studio.exe Forms           2648  +3 TCustomForm.DoCreate
+004d70d1 +011 AMXX_Studio.exe Forms           2575  +1 TCustomForm.AfterConstruction
+00404223 +007 AMXX_Studio.exe System                   @AfterConstruction
+004d70a8 +174 AMXX_Studio.exe Forms           2569 +16 TCustomForm.Create
+004dea4d +031 AMXX_Studio.exe Forms           6947  +4 TApplication.CreateForm
+0069bd2a +0fe AMXX_Studio.exe AMXX_Studio       76 +14 initialization
+766962c2 +022 KERNEL32.DLL                             BaseThreadInitThunk
+
+thread $c7c:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $3e8:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $2760:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $12d0:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $1e90:
+772a01cc +0c ntdll.dll     NtWaitForWorkViaWorkerFactory
+766962c2 +22 KERNEL32.DLL  BaseThreadInitThunk
+
+thread $1710:
+7729eb8c +0c ntdll.dll                 NtWaitForMultipleObjects
+76831b9a +ea KERNELBASE.dll            WaitForMultipleObjectsEx
+0044d639 +0d AMXX_Studio.exe madExcept CallThreadProcSafe
+0044d6a3 +37 AMXX_Studio.exe madExcept ThreadExceptFrame
+766962c2 +22 KERNEL32.DLL              BaseThreadInitThunk
+>> created by main thread ($834) at:
+76480891 +00 combase.dll
+
+modules:
+00400000 AMXX_Studio.exe      1.4.3.3             D:\amxmodx-amxmodx-1.8.2\editor\studio
+00df0000 WINMMBASE.dll        6.2.14393.0         C:\Windows\SYSTEM32
+10000000 scilexer.dll         1.6.6.0             D:\amxmodx-amxmodx-1.8.2\editor\studio
+5a370000 olepro32.dll         6.2.14393.447       C:\Windows\SYSTEM32
+5bbc0000 apphelp.dll          6.2.14393.0         C:\Windows\system32
+5f9e0000 winspool.drv         6.2.14393.0         C:\Windows\SYSTEM32
+63f80000 msimg32.dll          6.2.14393.0         C:\Windows\SYSTEM32
+66360000 twinapi.appcore.dll  6.2.14393.206       C:\Windows\system32
+66460000 dxgi.dll             6.2.14393.479       C:\Windows\system32
+664f0000 d3d11.dll            6.2.14393.479       C:\Windows\system32
+66720000 dcomp.dll            6.2.14393.0         C:\Windows\system32
+66840000 dataexchange.dll     6.2.14393.206       C:\Windows\system32
+6cea0000 comctl32.DLL         6.10.14393.447      C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_6.0.14393.447_none_89c64d28dafea4b9
+6dc90000 uxtheme.dll          6.2.14393.0         C:\Windows\system32
+71ca0000 dwmapi.dll           6.2.14393.206       C:\Windows\system32
+71ff0000 bcrypt.dll           6.2.14393.576       C:\Windows\SYSTEM32
+72080000 wsock32.dll          6.2.14393.0         C:\Windows\SYSTEM32
+720b0000 comctl32.dll         5.82.14393.447      C:\Windows\WinSxS\x86_microsoft.windows.common-controls_6595b64144ccf1df_5.82.14393.447_none_5507ded2cb4f7f4c
+73070000 version.dll          6.2.14393.0         C:\Windows\SYSTEM32
+732d0000 winmm.dll            6.2.14393.0         C:\Windows\SYSTEM32
+73ce0000 CRYPTBASE.dll        6.2.14393.0         C:\Windows\System32
+73cf0000 SspiCli.dll          6.2.14393.576       C:\Windows\System32
+73d10000 win32u.dll           6.2.14393.51        C:\Windows\System32
+73d30000 shcore.dll           6.2.14393.0         C:\Windows\System32
+73dc0000 bcryptPrimitives.dll 6.2.14393.0         C:\Windows\System32
+73e20000 psapi.dll            6.2.14393.0         C:\Windows\System32
+74250000 GDI32.dll            6.2.14393.206       C:\Windows\System32
+74280000 ole32.dll            6.2.14393.576       C:\Windows\System32
+74370000 kernel.appcore.dll   6.2.14393.0         C:\Windows\System32
+74380000 comdlg32.dll         6.2.14393.479       C:\Windows\System32
+74480000 SHELL32.dll          6.2.14393.693       C:\Windows\System32
+75860000 msvcp_win.dll        6.2.14393.0         C:\Windows\System32
+758e0000 msvcrt.dll           7.0.14393.0         C:\Windows\System32
+759a0000 cfgmgr32.dll         6.2.14393.0         C:\Windows\System32
+759e0000 imm32.dll            6.2.14393.0         C:\Windows\System32
+75a70000 RPCRT4.dll           6.2.14393.82        C:\Windows\System32
+75b40000 oleaut32.dll         6.2.14393.447       C:\Windows\System32
+75c30000 ucrtbase.dll         6.2.14393.0         C:\Windows\System32
+75d70000 gdi32full.dll        6.2.14393.576       C:\Windows\System32
+761d0000 advapi32.dll         6.2.14393.0         C:\Windows\System32
+762d0000 profapi.dll          6.2.14393.0         C:\Windows\System32
+762e0000 sechost.dll          6.2.14393.0         C:\Windows\System32
+76330000 clbcatq.dll          2001.12.10941.16384 C:\Windows\System32
+763c0000 SHLWAPI.dll          6.2.14393.0         C:\Windows\System32
+76410000 combase.dll          6.2.14393.576       C:\Windows\System32
+76630000 powrprof.dll         6.2.14393.0         C:\Windows\System32
+76680000 KERNEL32.DLL         6.2.14393.0         C:\Windows\System32
+76760000 KERNELBASE.dll       6.2.14393.479       C:\Windows\System32
+76910000 windows.storage.dll  6.2.14393.479       C:\Windows\System32
+76e80000 WS2_32.dll           6.2.14393.206       C:\Windows\System32
+76ef0000 USER32.dll           6.2.14393.576       C:\Windows\System32
+77050000 MSCTF.dll            6.2.14393.479       C:\Windows\System32
+77230000 ntdll.dll            6.2.14393.479       C:\Windows\SYSTEM32
+
+processes:
+0000 Idle                       0
+0004 System                     0
+01c4 smss.exe                   0
+0228 csrss.exe                  0
+0278 wininit.exe                0
+0280 csrss.exe                  1
+02cc winlogon.exe               1
+0300 services.exe               0
+0308 lsass.exe                  0
+0370 svchost.exe                0
+03b4 svchost.exe                0
+0078 dwm.exe                    1
+0210 svchost.exe                0
+0240 svchost.exe                0
+0244 svchost.exe                0
+0098 svchost.exe                0
+0484 WUDFHost.exe               0
+04f8 svchost.exe                0
+0560 WUDFHost.exe               0
+0570 NVDisplay.Container.exe    0
+0630 svchost.exe                0
+0744 svchost.exe                0
+07d0 svchost.exe                0
+077c spoolsv.exe                0
+087c svchost.exe                0
+0884 OfficeClickToRun.exe       0
+0894 IpOverUsbSvc.exe           0
+08e8 coherence.exe              0
+08f0 prl_tools_service.exe      0
+091c dllhost.exe                0
+0924 Service_KMS.exe            0
+094c QQProtect.exe              0
+0954 sqlwriter.exe              0
+099c vmnetdhcp.exe              0
+09ac svchost.exe                0
+09bc vmnat.exe                  0
+09c4 vmware-authd.exe           0
+09cc vmware-usbarbitrator64.exe 0
+0a20 svchost.exe                0
+0a30 svchost.exe                0
+0a70 coherence.exe              1
+0a88 svchost.exe                0
+0a98 prl_tools.exe              1
+0abc Memory Compression         0
+0b38 coherence.exe              1
+0ba8 svchost.exe                0
+0c38 dllhost.exe                0
+0ef4 msdtc.exe                  0
+0a18 WmiPrvSE.exe               0
+1080 svchost.exe                0
+10b0 svchost.exe                0
+114c vmware-hostd.exe           0
+162c sihost.exe                 1 normal       C:\Windows\System32
+1644 svchost.exe                1 normal       C:\Windows\System32
+16a4 taskhostw.exe              1 normal       C:\Windows\System32
+17cc ChsIME.exe                 1 normal       C:\Windows\System32\InputMethod\CHS
+17e4 explorer.exe               1 normal       C:\Windows
+0ba4 RuntimeBroker.exe          1 normal       C:\Windows\System32
+153c ShellExperienceHost.exe    1 normal       C:\Windows\SystemApps\ShellExperienceHost_cw5n1h2txyewy
+1830 SearchUI.exe               1 normal       C:\Windows\SystemApps\Microsoft.Windows.Cortana_cw5n1h2txyewy
+18dc SearchIndexer.exe          0
+1a54 fontdrvhost.exe            1
+1b14 prl_cc.exe                 1 normal       C:\Program Files (x86)\Parallels\Parallels Tools
+1bec GoogleCrashHandler.exe     0
+1bf4 GoogleCrashHandler64.exe   0
+15c8 OneDrive.exe               1 normal       C:\Users\201724\AppData\Local\Microsoft\OneDrive
+1aec Shadowsocks.exe            1 normal       C:\Users\201724
+19dc ss_privoxy.exe             1 normal       C:\Users\201724\ss_win_temp
+1af0 Steam.exe                  1 normal       C:\Program Files (x86)\Steam
+0adc steamwebhelper.exe         1 normal       C:\Program Files (x86)\Steam\bin\cef\cef.win7
+1a94 SteamService.exe           0
+1c28 BaiduNetdisk.exe           1 normal       C:\Users\201724\AppData\Roaming\baidu\BaiduNetdisk
+1e7c YunDetectService.exe       1 normal       C:\Users\201724\AppData\Roaming\baidu\BaiduNetdisk
+1ee8 vmware-tray.exe            1 normal       C:\Program Files (x86)\VMware\VMware Workstation
+1f2c emedtray.exe               1 normal       C:\Program Files\EmEditor
+19e4 SystemSettingsBroker.exe   1 above normal C:\Windows\System32
+0830 devenv.exe                 1 normal       C:\Program Files (x86)\Microsoft Visual Studio 10.0\Common7\IDE
+2684 MSBuild.exe                1 normal       C:\Windows\Microsoft.NET\Framework\v4.0.30319
+023c conhost.exe                1 normal       C:\Windows\System32
+0b88 dllhost.exe                1 normal       C:\Windows\System32
+269c QQ.exe                     1 normal       C:\Program Files (x86)\Tencent\QQ\Bin
+296c TXPlatform.exe             1 normal       C:\Program Files (x86)\Tencent\QQ\Bin
+1fe8 EmEditor.exe               1 normal       C:\Program Files\EmEditor
+1e8c SearchProtocolHost.exe     0
+1154 audiodg.exe                0
+2b70 vcpkgsrv.exe               1 normal       C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\vcpackages
+24d0 vcpkgsrv.exe               1 normal       C:\Program Files (x86)\Microsoft Visual Studio 10.0\VC\vcpackages
+25fc SearchFilterHost.exe       0
+27e8 mspdbsrv.exe               1 normal       C:\Program Files (x86)\Microsoft Visual Studio 10.0\Common7\IDE
+0b14 AMXX_Studio.exe            1 normal       D:\amxmodx-amxmodx-1.8.2\editor\studio
+
+hardware:
++ {1ed2bbf9-11f0-4084-b21f-ad83a8e6dcdc}
+  - Fax
+  - Microsoft Print to PDF
+  - Microsoft XPS Document Writer
+  - Print to PDF (Mac Desktop)
+  - Send To OneNote 16
+  - 根打印队列
++ {36fc9e60-c465-11cf-8056-444553540000}
+  - Feitian ROCKEY4 (driver 5.0.9.1202)
+  - Intel(R) 82801FB/FBM USB Universal Host Controller - 2658
+  - Intel(R) 82801FB/FBM USB2 Enhanced Host Controller - 265C
+  - Renesas USB 3.0 可扩展主机控制器 - 1.0 (Microsoft)
+  - USB Root Hub
+  - USB Root Hub
+  - USB 打印支持
+  - USB 根集线器(xHCI)
++ {4d36e965-e325-11ce-bfc1-08002be10318}
+  -  Virtual DVD-ROM
++ {4d36e966-e325-11ce-bfc1-08002be10318}
+  - 基于 ACPI x64 的电脑
++ {4d36e967-e325-11ce-bfc1-08002be10318}
+  - INTEL SSDSC2BW240H6 (disk2)
+  - WDC WD1002F9YZ-09H1JL1 (disk3)
++ {4d36e968-e325-11ce-bfc1-08002be10318}
+  - Parallels Display Adapter (WDDM) (driver 12.0.41353.0)
++ {4d36e96a-e325-11ce-bfc1-08002be10318}
+  - ATA Channel 0
+  - ATA Channel 1
+  - Intel(R) 82801BA Ultra ATA Storage Controller - 244B
+  - 标准 SATA AHCI 控制器
++ {4d36e96b-e325-11ce-bfc1-08002be10318}
+  - PS/2 标准键盘
++ {4d36e96c-e325-11ce-bfc1-08002be10318}
+  - Parallels Audio Controller (driver 12.0.41353.0)
++ {4d36e96e-e325-11ce-bfc1-08002be10318}
+  - 通用非即插即用监视器
++ {4d36e96f-e325-11ce-bfc1-08002be10318}
+  - Parallels Mouse Synchronization Device (driver 12.0.41353.0)
++ {4d36e972-e325-11ce-bfc1-08002be10318}
+  - Intel(R) 82574L Gigabit Network Connection
+  - VMware Virtual Ethernet Adapter for VMnet1 (driver 4.2.7.0)
+  - VMware Virtual Ethernet Adapter for VMnet8 (driver 4.2.7.0)
++ {4d36e979-e325-11ce-bfc1-08002be10318}
+  - HPColor LaserJet 2820 2L8
++ {4d36e97b-e325-11ce-bfc1-08002be10318}
+  - Microsoft 存储空间控制器
++ {4d36e97d-e325-11ce-bfc1-08002be10318}
+  - ACPI 固定功能按钮
+  - CPU 到 IO 控制器
+  - LPC 控制器
+  - Microsoft ACPI-Compliant System
+  - Microsoft System Management BIOS Driver
+  - Microsoft 基本呈现驱动程序
+  - Microsoft 基本显示驱动程序
+  - Microsoft 虚拟驱动器枚举器
+  - NDIS 虚拟网络适配器枚举器
+  - Parallels Memory Controller (driver 12.0.41353.0)
+  - Parallels Tool Device (driver 12.0.41353.0)
+  - PCI Express 根复合体
+  - PCI 到 PCI 桥
+  - PCI 到 PCI 桥
+  - PCI 到 PCI 桥
+  - Remote Desktop Device Redirector Bus
+  - Remote Desktop USB Hub
+  - SM 总线控制器
+  - UMBus Enumerator
+  - UMBus Enumerator
+  - UMBus Enumerator
+  - UMBus Root Bus Enumerator
+  - VMware VMCI Host Device (driver 9.8.6.0)
+  - 复合总线枚举器
+  - 高精度事件计时器
+  - 即插即用软件设备枚举器
+  - 旧设备
+  - 卷管理器
+  - 可编程中断控制器
+  - 母板资源
+  - 数值数据处理器
+  - 通用总线
+  - 通用总线
+  - 通用总线
+  - 通用总线
+  - 系统 CMOS/实时时钟
+  - 系统板
+  - 系统计时器
+  - 系统扬声器
+  - 直接内存访问控制器
++ {50127dc3-0f36-415e-a6cc-4cb3be910b65}
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
+  - Intel(R) Core(TM) i7-3960X CPU @ 3.30GHz
++ {5175d334-c371-4806-b3ba-71fd53c9258d}
+  - Microsoft Visual Studio Location Simulator Sensor (driver 11.0.0.0)
+  - Parallels Location Provider (driver 12.0.41353.0)
++ {533c5b84-ec70-11d2-9505-00c04f79deaf}
+  - 通用卷影复制
+  - 通用卷影复制
++ {62f9c741-b25a-46ce-b54c-9bccce08b6f2}
+  - Microsoft Device Association Root Enumerator
+  - Microsoft GS 波表合成器
+  - Microsoft IPv4 IPv6 转换适配器总线
+  - Microsoft Radio Device Enumeration Bus
++ {c166523c-fe0c-4a94-a586-f1a80cfbbf3e}
+  - 麦克风 (Parallels Audio Controller)
+  - 扬声器 (Parallels Audio Controller)
+
+cpu registers:
+eax = 029c20e0
+ebx = 0260a1e0
+ecx = 00000000
+edx = 0048eb4d
+esi = 006877ac
+edi = 00687798
+eip = 0048eb4d
+esp = 0019fb1c
+ebp = 0019fb60
+
+stack dump:
+0019fb1c  4d eb 48 00 de fa ed 0e - 01 00 00 00 07 00 00 00  M.H.............
+0019fb2c  30 fb 19 00 4d eb 48 00 - e0 20 9c 02 e0 a1 60 02  0...M.H.......`.
+0019fb3c  ac 77 68 00 98 77 68 00 - 60 fb 19 00 4c fb 19 00  .wh..wh.`...L...
+0019fb4c  98 77 68 00 ac 77 68 00 - d0 d3 48 00 20 c4 97 02  .wh..wh...H.....
+0019fb5c  0b 20 9c 02 88 fb 19 00 - 6a d5 48 00 d8 20 9c 02  ........j.H.....
+0019fb6c  94 fb 19 00 24 46 40 00 - 88 fb 19 00 9c 56 68 00  ....$F@......Vh.
+0019fb7c  80 21 5c 02 d0 d3 48 00 - 00 00 00 00 60 fd 19 00  .!\...H.....`...
+0019fb8c  d6 70 68 00 01 00 00 00 - 68 fd 19 00 24 46 40 00  .ph.....h...$F@.
+0019fb9c  60 fd 19 00 e8 44 9e 02 - 00 00 00 00 00 00 00 00  `....D..........
+0019fbac  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fbbc  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fbcc  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fbdc  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fbec  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fbfc  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fc0c  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fc1c  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fc2c  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fc3c  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0019fc4c  00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+
+disassembling:
+[...]
+006870b9
+006870be       jmp     loc_6870b0
+006870be
+006870be     ; ---------------------------------------------------------
+006870be
+006870c0 366   push    1
+006870c2       mov     ecx, $687798           ; 'MakeBaks'
+006870c7       mov     edx, $6877ac           ; 'Editor'
+006870cc       mov     eax, [$6aa5fc]
+006870d1       mov     ebx, [eax]
+006870d3     > call    dword ptr [ebx+$c]
+006870d3
+006870d6 367   push    1
+006870d8       mov     ecx, $6877bc           ; 'DontLoadFilesTwice'
+006870dd       mov     edx, $6877ac           ; 'Editor'
+006870e2       mov     eax, [$6aa5fc]
+006870e7       mov     ebx, [eax]
+006870e9       call    dword ptr [ebx+$c]
+006870e9
+006870ec 368   push    1
+006870ee       mov     ecx, $6877d8           ; 'Auto-Indent'
+[...]
+

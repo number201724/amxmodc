@@ -7,22 +7,19 @@ chdir($path);
 
 require 'helpers.pm';
 
-chdir('../../../OUTPUT');
+chdir('../../installer/builder');
 
-my $argn = $#ARGV + 1;
-if ($argn > 0) {
-	$ENV{CC} = $ARGV[0];
-	$ENV{CXX} = $ARGV[0];
+my $output;
+if ($^O eq "linux" || $^O eq "darwin") {
+	$output = `mono builder.exe directions.info`;
+} else {
+	$output = `builder.exe directions.info`;
 }
+print $output . "\n";
 
-system("ambuild --no-color 2>&1");
-
-if ($? != 0)
-{
-	die "Build failed: $!\n";
-}
-else
-{
+if (!($output =~ /Build succeeded/)) {
+	die "Build failed!\n";
+} else {
 	exit(0);
 }
 

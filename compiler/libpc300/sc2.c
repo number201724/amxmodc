@@ -17,8 +17,9 @@
  *  2.  Altered source versions must be plainly marked as such, and must not be
  *      misrepresented as being the original software.
  *  3.  This notice may not be removed or altered from any source distribution.
+ *
+ *  Version: $Id: sc2.c 3318 2007-02-16 18:49:21Z sawce $
  */
-
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -29,16 +30,14 @@
 #if defined LINUX || defined __FreeBSD__ || defined __OpenBSD__ || defined __APPLE__
   #include <sclinux.h>
 #endif
-#include "sp_symhash.h"
 
 #if defined FORTIFY
   #include "fortify.h"
 #endif
 
 /* flags for litchar() */
-#define RAWMODE         0x1
-#define UTF8MODE        0x2
-#define ISPACKED		0x4
+#define RAWMODE         1
+#define UTF8MODE        2
 static cell litchar(const unsigned char **lptr,int flags);
 
 static void substallpatterns(unsigned char *line,int buffersize);
@@ -122,18 +121,18 @@ SC_FUNC void clearstk(void)
 SC_FUNC int plungequalifiedfile(char *name)
 {
 static char *extensions[] = { ".inc", ".p", ".pawn" };
-  void *fp;
+  FILE *fp;
   char *ext;
   int ext_idx;
 
   ext_idx=0;
   do {
-    fp=(void*)pc_opensrc(name);
+    fp=(FILE*)pc_opensrc(name);
     ext=strchr(name,'\0');      /* save position */
     if (fp==NULL) {
       /* try to append an extension */
       strcpy(ext,extensions[ext_idx]);
-      fp=(void*)pc_opensrc(name);
+      fp=(FILE*)pc_opensrc(name);
       if (fp==NULL)
         *ext='\0';              /* on failure, restore filename */
     } /* if */
@@ -143,9 +142,6 @@ static char *extensions[] = { ".inc", ".p", ".pawn" };
     *ext='\0';                  /* restore filename */
     return FALSE;
   } /* if */
-  if (sc_showincludes && sc_status==statFIRST) {
-    fprintf(stdout, "Note: including file: %s\n", name);
-  }
   PUSHSTK_P(inpf);
   PUSHSTK_P(inpfname);          /* pointer to current file name */
   PUSHSTK_P(curlibrary);
@@ -158,17 +154,15 @@ static char *extensions[] = { ".inc", ".p", ".pawn" };
   PUSHSTK_I(fline);
   inpfname=duplicatestring(name);/* set name of include file */
   if (inpfname==NULL)
-    error(103);                 /* insufficient memory */
-  inpf=fp;                      /* set input file pointer to include file */
+    error(103);             /* insufficient memory */
+  inpf=fp;                  /* set input file pointer to include file */
   fnumber++;
-  fline=0;                      /* set current line number to 0 */
+  fline=0;                  /* set current line number to 0 */
   fcurrent=fnumber;
-  icomment=0;                   /* not in a comment */
-  insert_dbgfile(inpfname);     /* attach to debug information */
-  insert_inputfile(inpfname);   /* save for the error system */
-  assert(sc_status == statFIRST || strcmp(get_inputfile(fcurrent), inpfname) == 0);
-  setfiledirect(inpfname);      /* (optionally) set in the list file */
-  listline=-1;                  /* force a #line directive when changing the file */
+  icomment=0;               /* not in a comment */
+  insert_dbgfile(inpfname);
+  setfiledirect(inpfname);
+  listline=-1;              /* force a #line directive when changing the file */
   sc_is_utf8=(short)scan_utf8(inpf,name);
   return TRUE;
 }
@@ -285,7 +279,6 @@ static void readline(unsigned char *line)
 {
   int i,num,cont;
   unsigned char *ptr;
-  symbol *sym;
 
   if (lptr==term_expr)
     return;
@@ -324,7 +317,6 @@ static void readline(unsigned char *line)
       inpf=(FILE *)POPSTK_P();
       insert_dbgfile(inpfname);
       setfiledirect(inpfname);
-      assert(sc_status==statFIRST || strcmp(get_inputfile(fcurrent),inpfname)==0);
       listline=-1;              /* force a #line directive when changing the file */
     } /* if */
 
@@ -364,9 +356,6 @@ static void readline(unsigned char *line)
       line+=strlen((char*)line);
     } /* if */
     fline+=1;
-    sym=findconst("__LINE__");
-    assert(sym!=NULL);
-    sym->addr=fline;
   } while (num>=0 && cont);
 }
 
@@ -595,10 +584,10 @@ static int htoi(cell *val,const unsigned char *curptr)
     return (int)(ptr-curptr);
 }
 
-#if defined __APPLE__
+#if defined __GNUC__
 static double pow10(double d)
 {
-  return pow(10, d);
+	return pow(10, d);
 }
 #endif
 
@@ -859,7 +848,6 @@ static int command(void)
   char *str;
   int index;
   cell code_index;
-  size_t len;
 
   while (*lptr<=' ' && *lptr!='\0')
     lptr+=1;
@@ -899,7 +887,7 @@ static int command(void)
     assert(iflevel>=0);
     if (iflevel==0) {
       error(26);                /* no matching #if */
-      errorset(sRESET,0);
+      errorset(sRESET);
     } else {
       /* check for earlier #else */
       if ((ifstack[iflevel-1] & HANDLED_ELSE)==HANDLED_ELSE) {
@@ -907,7 +895,7 @@ static int command(void)
           error(61);            /* #elseif directive may not follow an #else */
         else
           error(60);            /* multiple #else directives between #if ... #endif */
-        errorset(sRESET,0);
+        errorset(sRESET);
       } else {
         assert(iflevel>0);
         /* if there has been a "parse mode" on this level, set "skip mode",
@@ -916,27 +904,11 @@ static int command(void)
         if ((ifstack[iflevel-1] & PARSEMODE)==PARSEMODE) {
           /* there has been a parse mode already on this level, so skip the rest */
           ifstack[iflevel-1] |= (char)SKIPMODE;
-          /* if we were already skipping this section, allow expressions with
-           * undefined symbols; otherwise check the expression to catch errors
-           */
-          if (tok==tpELSEIF) {
-            if (skiplevel==iflevel)
-              preproc_expr(&val,NULL);  /* get, but ignore the expression */
-            else
-              lptr=(unsigned char*)strchr((char*)lptr,'\0');
-          } /* if */
         } else {
           /* previous conditions were all FALSE */
           if (tok==tpELSEIF) {
-            /* if we were already skipping this section, allow expressions with
-             * undefined symbols; otherwise check the expression to catch errors
-             */
-            if (skiplevel==iflevel) {
-              preproc_expr(&val,NULL);  /* get value (or 0 on error) */
-            } else {
-              lptr=(unsigned char*)strchr((char*)lptr,'\0');
-              val=0;
-            } /* if */
+            /* get new expression */
+            preproc_expr(&val,NULL);  /* get value (or 0 on error) */
             ifstack[iflevel-1]=(char)(val ? PARSEMODE : SKIPMODE);
           } else {
             /* a simple #else, clear skip mode */
@@ -951,7 +923,7 @@ static int command(void)
     ret=CMD_IF;
     if (iflevel==0){
       error(26);        /* no matching "#if" */
-      errorset(sRESET,0);
+      errorset(sRESET);
     } else {
       iflevel--;
       if (iflevel<skiplevel)
@@ -1029,27 +1001,14 @@ static int command(void)
               error(27);          /* invalid character constant */
             sc_ctrlchar=(char)val;
           } /* if */
-        }
-        else if (strcmp(str, "deprecated") == 0) {
-          while (*lptr <= ' ' && *lptr != '\0')
-            lptr++;
-          len = strlen((char*)lptr);
-          pc_deprecate = (char*)malloc(len + 1);
-          if (pc_deprecate != NULL)
-          {
-            strcpy(pc_deprecate, (char*)lptr);
-            if (pc_deprecate[len - 1] == '\n')  /* remove extra \n as already appended in .scp file */
-              pc_deprecate[len-1] = '\0';
-          }
-          lptr = (unsigned char*)strchr((char*)lptr, '\0'); /* skip to end (ignore "extra characters on line") */
         } else if (strcmp(str,"dynamic")==0) {
           preproc_expr(&sc_stksize,NULL);
-        } else if ( !strcmp(str,"library") ||
+		} else if ( !strcmp(str,"library") ||
                     !strcmp(str, "reqlib") ||
                     !strcmp(str, "reqclass") ||
                     !strcmp(str, "loadlib") ||
-                    !strcmp(str, "explib") ||
-                    !strcmp(str, "expclass") ||
+                    !strcmp(str, "explib") || 
+                    !strcmp(str, "expclass") || 
                     !strcmp(str, "defclasslib") ) {
           char name[sNAMEMAX+1],sname[sNAMEMAX+1];
           const char *prefix = "";
@@ -1089,7 +1048,7 @@ static int command(void)
               } else {
                 sname[0] = '_';
               }
-            }
+			}
           } /* if */
           if (strlen(name)==0) {
             curlibrary=NULL;
@@ -1099,20 +1058,20 @@ static int command(void)
             /* add the name if it does not yet exist in the table */
             char newname[sNAMEMAX+1];
             if (strlen(name) + strlen(prefix) + strlen(sname) <= sNAMEMAX)
-            {
+			{
               strcpy(newname, prefix);
               strcat(newname, name);
               strcat(newname, sname);
               if (newname[0] != '?')
-              {
+			  {
                 if (find_constval(&libname_tab,newname,0)==NULL)
-                {
+			    {
                   curlibrary=append_constval(&libname_tab,newname,0,0);
-                }
-              } else {
+			    }
+			  } else {
                 exporttag(pc_addtag(newname));
-              }
-            }
+			  }
+			}
           } /* if */
         } else if (strcmp(str,"pack")==0) {
           cell val;
@@ -1156,8 +1115,7 @@ static int command(void)
         } else if (strcmp(str,"tabsize")==0) {
           cell val;
           preproc_expr(&val,NULL);
-          if (val>0)
-            sc_tabsize=(int)val;
+          sc_tabsize=(int)val;
         } else if (strcmp(str,"align")==0) {
           sc_alignnext=TRUE;
         } else if (strcmp(str,"unused")==0) {
@@ -1291,7 +1249,7 @@ static int command(void)
       } /* while */
       end=lptr;
       /* check pattern to match */
-      if (!alpha(*start)) {
+      if (!isalpha(*start) && *start!='_') {
         error(74);      /* pattern must start with an alphabetic character */
         break;
       } /* if */
@@ -1342,7 +1300,7 @@ static int command(void)
       } /* while */
       substitution[count]='\0';
       /* check whether the definition already exists */
-      for (prefixlen=0,start=(unsigned char*)pattern; alphanum(*start); prefixlen++,start++)
+      for (prefixlen=0,start=(unsigned char*)pattern; isalpha(*start) || isdigit(*start) || *start=='_'; prefixlen++,start++)
         /* nothing */;
       assert(prefixlen>0);
       if ((def=find_subst(pattern,prefixlen))!=NULL) {
@@ -1373,7 +1331,7 @@ static int command(void)
   case tpERROR:
     while (*lptr<=' ' && *lptr!='\0')
       lptr++;
-    if (!SKIPPING)
+	if (!SKIPPING)
       error(111,lptr);    /* user error */
     break;
   default:
@@ -1452,7 +1410,7 @@ static const unsigned char *skippgroup(const unsigned char *string)
     break;
   default:
     assert(0);
-    close='\0';         /* only to avoid a compiler warning */
+	close='\0';         /* only to avoid a compiler warning */
   }/* switch */
 
   string++;
@@ -1494,12 +1452,11 @@ static int substpattern(unsigned char *line,size_t buffersize,char *pattern,char
   const unsigned char *p,*s,*e;
   unsigned char *args[10];
   int match,arg,len,argsnum=0;
-  int stringize;
 
   memset(args,0,sizeof args);
 
   /* check the length of the prefix */
-  for (prefixlen=0,s=(unsigned char*)pattern; alphanum(*s); prefixlen++,s++)
+  for (prefixlen=0,s=(unsigned char*)pattern; isalpha(*s) || isdigit(*s) || *s=='_'; prefixlen++,s++)
     /* nothing */;
   assert(prefixlen>0);
   assert(strncmp((char*)line,pattern,prefixlen)==0);
@@ -1534,7 +1491,7 @@ static int substpattern(unsigned char *line,size_t buffersize,char *pattern,char
         /* store the parameter (overrule any earlier) */
         if (args[arg]!=NULL)
           free(args[arg]);
-        else
+		else
           argsnum++;
         len=(int)(e-s);
         args[arg]=(unsigned char*)malloc(len+1);
@@ -1592,18 +1549,11 @@ static int substpattern(unsigned char *line,size_t buffersize,char *pattern,char
   if (match) {
     /* calculate the length of the substituted string */
     for (e=(unsigned char*)substitution,len=0; *e!='\0'; e++) {
-      if (*e=='#' && *(e+1)=='%' && isdigit(*(e+2))) {
-        stringize=1;
-        e++;            /* skip '#' */
-      } else {
-        stringize=0;
-      } /* if */
       if (*e=='%' && isdigit(*(e+1)) && argsnum) {
         arg=*(e+1)-'0';
         assert(arg>=0 && arg<=9);
-        assert(stringize == 0 || stringize == 1);
         if (args[arg]!=NULL) {
-          len+=strlen((char*)args[arg])+2*stringize;
+          len+=strlen((char*)args[arg]);
           e++;          /* skip %, digit is skipped later */
         } else {
           len++;
@@ -1619,22 +1569,12 @@ static int substpattern(unsigned char *line,size_t buffersize,char *pattern,char
       /* substitute pattern */
       strdel((char*)line,(int)(s-line));
       for (e=(unsigned char*)substitution,s=line; *e!='\0'; e++) {
-        if (*e=='#' && *(e+1)=='%' && isdigit(*(e+2))) {
-          stringize=1;
-          e++;            /* skip '#' */
-        } else {
-          stringize=0;
-        } /* if */
         if (*e=='%' && isdigit(*(e+1))) {
           arg=*(e+1)-'0';
           assert(arg>=0 && arg<=9);
           if (args[arg]!=NULL) {
-            if (stringize)
-              strins((char*)s++,"\"",1);
             strins((char*)s,(char*)args[arg],strlen((char*)args[arg]));
             s+=strlen((char*)args[arg]);
-            if (stringize)
-              strins((char*)s++,"\"",1);
             e++;          /* skip %, digit is skipped later */
           } else {
             strins((char*)s,(char*)e,1);
@@ -1676,7 +1616,7 @@ static void substallpatterns(unsigned char *line,int buffersize)
     /* find the start of a prefix (skip all non-alphabetic characters),
      * also skip strings
      */
-    while (!alpha(*start) && *start!='\0') {
+    while (!isalpha(*start) && *start!='_' && *start!='\0') {
       /* skip strings */
       if (is_startstring(start)) {
         start=(unsigned char *)skipstring(start);
@@ -1694,7 +1634,7 @@ static void substallpatterns(unsigned char *line,int buffersize)
       while ((*start<=' ' && *start!='\0') || *start=='(')
         start++;
       /* skip the symbol behind it */
-      while (alphanum(*start))
+      while (isalpha(*start) || isdigit(*start) || *start=='_')
         start++;
       /* drop back into the main loop */
       continue;
@@ -1702,7 +1642,7 @@ static void substallpatterns(unsigned char *line,int buffersize)
     /* get the prefix (length), look for a matching definition */
     prefixlen=0;
     end=start;
-    while (alphanum(*end)) {
+    while (isalpha(*end) || isdigit(*end) || *end=='_') {
       prefixlen++;
       end++;
     } /* while */
@@ -1721,61 +1661,6 @@ static void substallpatterns(unsigned char *line,int buffersize)
   } /* while */
 }
 #endif
-
-/*  scanplus
- *  Look for + in the string and (if not there) in the remainder of the file,
- *  but restore (or keep intact):
- *  - the current position in the file
- *  - the comment parsing state
- *  - the line buffer used by the lexical analyser
- *  - the active line number and the active file
- *
- *  The function returns 1 if a plus was found and 0 if not
- */
-static int scanplus(const unsigned char *lptr)
-{
-  static void *inpfmark=NULL;
-  unsigned char *localbuf;
-  short localcomment,found;
-
-  /* first look for the plus in the remainder of the string */
-  while (*lptr<=' ' && *lptr!='\0')
-    lptr++;
-  if (lptr[0]=='+')
-    return 1;
-  if (*lptr!='\0')
-    return 0;           /* stumbled on something that is not a plus and not white-space */
-
-  /* the plus was not on the active line, read more lines from the current
-   * file (but save its position first)
-   */
-  if (inpf==NULL || pc_eofsrc(inpf))
-    return 0;           /* quick exit: cannot read after EOF */
-  if ((localbuf=(unsigned char*)malloc((sLINEMAX+1)*sizeof(unsigned char)))==NULL)
-    return 0;
-  inpfmark=pc_getpossrc(inpf);
-  localcomment=icomment;
-
-  found=0;
-  /* read from the file, skip preprocessing, but strip off comments */
-  while (!found && pc_readsrc(inpf,localbuf,sLINEMAX)!=NULL) {
-    stripcom(localbuf);
-    lptr=localbuf;
-    /* skip white space */
-    while (*lptr<=' ' && *lptr!='\0')
-      lptr++;
-    if (lptr[0]=='+')
-      found=1;
-    else if (*lptr!='\0')
-      break;                       /* stumbled on something that is not a plus and not white-space */
-  } /* while */
-
-  /* clean up & reset */
-  free(localbuf);
-  pc_resetsrc(inpf,inpfmark);
-  icomment=localcomment;
-  return found;
-}
 
 /*  preprocess
  *
@@ -1801,7 +1686,7 @@ SC_FUNC void preprocess(void)
     lptr=pline;         /* set "line pointer" to start of the parsing buffer */
     iscommand=command();
     if (iscommand!=CMD_NONE)
-      errorset(sRESET,0); /* reset error flag ("panic mode") on empty line or directive */
+      errorset(sRESET); /* reset error flag ("panic mode") on empty line or directive */
     #if !defined NO_DEFINE
       if (iscommand==CMD_NONE) {
         assert(lptr!=term_expr);
@@ -1931,12 +1816,12 @@ char *sc_tokens[] = {
          "#endscript", "#error", "#file", "#if", "#include", "#line", "#pragma",
          "#tryinclude", "#undef",
          ";", ";", "-integer value-", "-rational value-", "-identifier-",
-         "-label-", "-string-", "-string-"
+         "-label-", "-string-"
        };
 
 SC_FUNC int lex(cell *lexvalue,char **lexsym)
 {
-  int i,toolong,newline;
+  int i,toolong,newline,stringflags;
   char **tokptr;
   const unsigned char *starttoken;
 
@@ -1995,7 +1880,7 @@ SC_FUNC int lex(cell *lexvalue,char **lexsym)
   while (i<=tLAST) {    /* match reserved words and compiler directives */
     if (*lptr==**tokptr && match(*tokptr,TRUE)) {
       _lextok=i;
-      errorset(sRESET,0); /* reset error flag (clear the "panic mode")*/
+      errorset(sRESET); /* reset error flag (clear the "panic mode")*/
       if (pc_docexpr)   /* optionally concatenate to documentation string */
         insert_autolist(*tokptr);
       return _lextok;
@@ -2048,92 +1933,34 @@ SC_FUNC int lex(cell *lexvalue,char **lexsym)
         error(220);
       } /* if */
     } /* if */
-  } else if (*lptr=='\"'                                /* unpacked string literal */
-             || (*lptr==sc_ctrlchar && *(lptr+1)=='\"') /* unpacked raw string */
-             || (*lptr=='!' && *(lptr+1)=='\"')         /* packed string */
-             || (*lptr=='!' && *(lptr+1)==sc_ctrlchar && *(lptr+2)=='\"')   /* packed raw string */
-             || (*lptr==sc_ctrlchar && *(lptr+1)=='!' && *(lptr+2)=='\"'))  /* packed raw string */
-  {
-    int stringflags,segmentflags;
-    char *cat;
-    if (sLiteralQueueDisabled) {
-      _lextok=tPENDING_STRING;
-      return _lextok;
-    }
+  } else if (*lptr=='\"' || (*lptr==sc_ctrlchar && *(lptr+1)=='\"'))
+  {                                     /* unpacked string literal */
     _lextok=tSTRING;
+    stringflags= (*lptr==sc_ctrlchar) ? RAWMODE : 0;
     *lexvalue=_lexval=litidx;
-    _lexstr[0]='\0';
-    stringflags=-1;     /* to mark the first segment */
-    for ( ;; ) {
-      if (*lptr=='!')
-        segmentflags= (*(lptr+1)==sc_ctrlchar) ? RAWMODE | ISPACKED: ISPACKED;
-      else if (*lptr==sc_ctrlchar)
-        segmentflags= (*(lptr+1)=='!') ? RAWMODE | ISPACKED : RAWMODE;
-      else
-        segmentflags=0;
-      if ((segmentflags & ISPACKED)!=0)
-        lptr+=1;          /* skip '!' character */
-      if ((segmentflags & RAWMODE)!=0)
-        lptr+=1;          /* skip "escape" character too */
-      assert(*lptr=='\"');
-      lptr+=1;            /* skip double quote too */
-      if (stringflags==-1)
-        stringflags=segmentflags;
-      else if (stringflags!=segmentflags)
-        error(238);       /* mixing packed/unpacked/raw strings in concatenation */
-      cat=strchr(_lexstr,'\0');
-      assert(cat!=NULL);
-      while (*lptr!='"' && *lptr!='\0' && (cat-_lexstr)<sLINEMAX) {
-        if (*lptr!='\a') { /* ignore '\a' (which was inserted at a line concatenation) */
-          *cat++=*lptr;
-          if (*lptr==sc_ctrlchar && *(lptr+1)!='\0')
-            *cat++=*++lptr; /* skip escape character plus the escaped character */
-        } /* if */
-        lptr++;
-      } /* while */
-      *cat='\0';          /* terminate string */
-      if (*lptr=='\"')
-        lptr+=1;          /* skip final quote */
-      else
-        error(37);        /* invalid (non-terminated) string */
-      /* see whether an ellipsis is following the string */
-      if (!scanplus(lptr))
-        break;            /* no concatenation of string literals */
-      /* there is an ellipses, go on parsing (this time with full preprocessing) */
-      while (*lptr<=' ') {
-        if (*lptr=='\0') {
-          preprocess();             /* preprocess resets "lptr" */
-          assert(freading && lptr!=term_expr);
-        } else {
-          lptr++;
-        } /* if */
-      } /* while */
-      assert(freading && lptr[0]=='+');
-      lptr+=1;
-      while (*lptr<=' ') {
-        if (*lptr=='\0') {
-          preprocess();             /* preprocess resets "lptr" */
-          assert(freading && lptr!=term_expr);
-        } else {
-          lptr++;
-        } /* if */
-      } /* while */
-      if (!freading || !(*lptr=='\"'
-                         || (*lptr==sc_ctrlchar && *(lptr+1)=='\"')
-                         || (*lptr=='!' && *(lptr+1)=='\"')
-                         || (*lptr=='!' && *(lptr+1)==sc_ctrlchar && *(lptr+2)=='\"')
-                         || (*lptr==sc_ctrlchar && *(lptr+1)=='!' && *(lptr+2)=='\"')))
-      {
-        error(37);                /* invalid string concatenation */
-        break;
-      } /* if */
-    } /* for */
-    if (sc_packstr)
-      stringflags ^= ISPACKED;    /* invert packed/unpacked parameters */
-    if ((stringflags & ISPACKED)!=0)
-      packedstring((unsigned char*)_lexstr,stringflags);
+    lptr+=1;            /* skip double quote */
+    if ((stringflags & RAWMODE)!=0)
+      lptr+=1;          /* skip "escape" character too */
+    lptr=sc_packstr ? packedstring(lptr,stringflags) : unpackedstring(lptr,stringflags);
+    if (*lptr=='\"')
+      lptr+=1;          /* skip final quote */
     else
-      unpackedstring((unsigned char*)_lexstr,stringflags);
+      error(37);        /* invalid (non-terminated) string */
+  } else if ((*lptr=='!' && *(lptr+1)=='\"')
+             || (*lptr=='!' && *(lptr+1)==sc_ctrlchar && *(lptr+2)=='\"')
+             || (*lptr==sc_ctrlchar && *(lptr+1)=='!' && *(lptr+2)=='\"'))
+  {                                     /* packed string literal */
+    _lextok=tSTRING;
+    stringflags= (*lptr==sc_ctrlchar || *(lptr+1)==sc_ctrlchar) ? RAWMODE : 0;
+    *lexvalue=_lexval=litidx;
+    lptr+=2;            /* skip exclamation point and double quote */
+    if ((stringflags & RAWMODE)!=0)
+      lptr+=1;          /* skip "escape" character too */
+    lptr=sc_packstr ? unpackedstring(lptr,stringflags) : packedstring(lptr,stringflags);
+    if (*lptr=='\"')
+      lptr+=1;          /* skip final quote */
+    else
+      error(37);        /* invalid (non-terminated) string */
   } else if (*lptr=='\'') {             /* character literal */
     lptr+=1;            /* skip quote */
     _lextok=tNUMBER;
@@ -2145,7 +1972,7 @@ SC_FUNC int lex(cell *lexvalue,char **lexsym)
   } else if (*lptr==';') {      /* semicolumn resets "error" flag */
     _lextok=';';
     lptr+=1;
-    errorset(sRESET,0);   /* reset error flag (clear the "panic mode")*/
+    errorset(sRESET);   /* reset error flag (clear the "panic mode")*/
   } else {
     _lextok=*lptr;      /* if every match fails, return the character */
     lptr+=1;            /* increase the "lptr" pointer */
@@ -2177,10 +2004,6 @@ SC_FUNC int lex(cell *lexvalue,char **lexsym)
  */
 SC_FUNC void lexpush(void)
 {
-  if (_lextok == tPENDING_STRING) {
-    // Don't push back fake tokens.
-    return;
-  }
   assert(_pushed==FALSE);
   _pushed=TRUE;
 }
@@ -2340,7 +2163,6 @@ static void chk_grow_litq(void)
  */
 SC_FUNC void litadd(cell value)
 {
-  assert(!sLiteralQueueDisabled);
   chk_grow_litq();
   assert(litidx<litmax);
   litq[litidx++]=value;
@@ -2356,7 +2178,6 @@ SC_FUNC void litadd(cell value)
  */
 SC_FUNC void litinsert(cell value,int pos)
 {
-  assert(!sLiteralQueueDisabled);
   chk_grow_litq();
   assert(litidx<litmax);
   assert(pos>=0 && pos<=litidx);
@@ -2509,7 +2330,6 @@ SC_FUNC int ishex(char c)
 static symbol *add_symbol(symbol *root,symbol *entry,int sort)
 {
   symbol *newsym;
-  int global = root==&glbtab;
 
   if (sort)
     while (root->next!=NULL && strcmp(entry->name,root->next->name)>0)
@@ -2522,8 +2342,6 @@ static symbol *add_symbol(symbol *root,symbol *entry,int sort)
   memcpy(newsym,entry,sizeof(symbol));
   newsym->next=root->next;
   root->next=newsym;
-  if (global)
-    AddToHashTable(sp_Globals, newsym);
   return newsym;
 }
 
@@ -2568,7 +2386,6 @@ static void free_symbol(symbol *sym)
 
 SC_FUNC void delete_symbol(symbol *root,symbol *sym)
 {
-  symbol *origRoot = root;
   /* find the symbol and its predecessor
    * (this function assumes that you will never delete a symbol that is not
    * in the table pointed at by "root")
@@ -2579,42 +2396,23 @@ SC_FUNC void delete_symbol(symbol *root,symbol *sym)
     assert(root!=NULL);
   } /* while */
 
-  if (origRoot==&glbtab)
-    RemoveFromHashTable(sp_Globals, sym);
-
   /* unlink it, then free it */
   root->next=sym->next;
   free_symbol(sym);
 }
 
-SC_FUNC int get_actual_compound(symbol *sym)
-{
-  if (sym->ident == iARRAY || sym->ident == iREFARRAY) {
-    while (sym->parent)
-      sym = sym->parent;
-  }
-
-  return sym->compound;
-}
-
 SC_FUNC void delete_symbols(symbol *root,int level,int delete_labels,int delete_functions)
 {
-  symbol *base;
-  symbol *sym,*parent_sym,*child_sym;
+  symbol *sym,*parent_sym;
   constvalue *stateptr;
   int mustdelete=0;
 
   /* erase only the symbols with a deeper nesting level than the
    * specified nesting level */
-  base=root;
-  while (base->next!=NULL) {
-    sym=base->next;
-    if (get_actual_compound(sym)<level)
+  while (root->next!=NULL) {
+    sym=root->next;
+    if (sym->compound<level)
       break;
-    if ((sym->usage & uVISITED) != 0) {
-      base=sym;                           /* skip the symbol */
-      continue;
-    }
     switch (sym->ident) {
     case iLABEL:
       mustdelete=delete_labels;
@@ -2658,22 +2456,8 @@ SC_FUNC void delete_symbols(symbol *root,int level,int delete_labels,int delete_
       break;
     } /* switch */
     if (mustdelete) {
-      /* first delete children, if any */
-      int count=0;
-      while ((child_sym=finddepend(sym))!=NULL) {
-        delete_symbol(root,child_sym);
-        count++;
-      } /* while */
-      if (count==0) {
-        if (root == &glbtab)
-          RemoveFromHashTable(sp_Globals, sym);
-        base->next=sym->next;
-        free_symbol(sym);
-      } else {
-        /* chain has changed */
-        delete_symbol(root,sym);
-        base=root;      /* restart */
-      } /* if */
+      root->next=sym->next;
+      free_symbol(sym);
     } else {
       /* if the function was prototyped, but not implemented in this source,
        * mark it as such, so that its use can be flagged
@@ -2689,28 +2473,35 @@ SC_FUNC void delete_symbols(symbol *root,int level,int delete_labels,int delete_
       /* for user defined operators, also remove the "prototyped" flag, as
        * user-defined operators *must* be declared before use
        */
-      if (sym->ident==iFUNCTN && !alpha(*sym->name))
+      if (sym->ident==iFUNCTN && !isalpha(*sym->name) && *sym->name!='_' && *sym->name!=PUBLIC_CHAR)
         sym->usage &= ~uPROTOTYPED;
-      /* mark the symbol as "visited", so we won't process it twice */
-      sym->usage |= uVISITED;
-      base=sym;                 /* skip the symbol */
+      root=sym;                 /* skip the symbol */
     } /* if */
   } /* if */
+}
 
-
-  /* go through the symbols again to erase any "visited" marks */
-  for (sym = root->next; sym != NULL; sym = sym->next)
-    sym->usage &= ~uVISITED;
+/* The purpose of the hash is to reduce the frequency of a "name"
+ * comparison (which is costly). There is little interest in avoiding
+ * clusters in similar names, which is why this function is plain simple.
+ */
+SC_FUNC uint32_t namehash(const char *name)
+{
+  const unsigned char *ptr=(const unsigned char *)name;
+  int len=strlen(name);
+  if (len==0)
+    return 0L;
+  assert(len<256);
+  return (len<<24Lu) + (ptr[0]<<16Lu) + (ptr[len-1]<<8Lu) + (ptr[len>>1Lu]);
 }
 
 static symbol *find_symbol(const symbol *root,const char *name,int fnumber,int includechildren)
 {
   symbol *ptr=root->next;
-  unsigned long hash=NameHash(name);
+  unsigned long hash=namehash(name);
   while (ptr!=NULL) {
     if (hash==ptr->hash && strcmp(name,ptr->name)==0
         && (ptr->parent==NULL || includechildren)
-        && (fnumber<0 || (ptr->fnumber<0 || ptr->fnumber==fnumber)))
+		&& (fnumber<0 || (ptr->fnumber<0 || ptr->fnumber==fnumber)))
       return ptr;
     ptr=ptr->next;
   } /* while */
@@ -2776,10 +2567,7 @@ SC_FUNC int refer_symbol(symbol *entry,symbol *bywhom)
 
 SC_FUNC void markusage(symbol *sym,int usage)
 {
-  assert(sym!=NULL);
   sym->usage |= (char)usage;
-  if ((usage & uWRITTEN) != 0)
-    sym->lnumber=fline;
   /* check if (global) reference must be added to the symbol */
   if ((usage & (uREAD | uWRITTEN))!=0) {
     /* only do this for global symbols */
@@ -2820,7 +2608,7 @@ SC_FUNC symbol *findconst(const char *name)
 
   sym=find_symbol(&loctab,name,-1,TRUE);      /* try local symbols first */
   if (sym==NULL || sym->ident!=iCONSTEXPR)    /* not found, or not a constant */
-    sym=FindInHashTable(sp_Globals,name,fcurrent);
+    sym=find_symbol(&glbtab,name,fcurrent,TRUE);
   if (sym==NULL || sym->ident!=iCONSTEXPR)
     return NULL;
   assert(sym->parent==NULL || (sym->usage & uENUMFIELD)!=0);
@@ -2861,18 +2649,16 @@ SC_FUNC symbol *addsym(const char *name,cell addr,int ident,int vclass,int tag,i
 
   /* first fill in the entry */
   strcpy(entry.name,name);
-  entry.hash=NameHash(name);
+  entry.hash=namehash(name);
   entry.addr=addr;
   entry.codeaddr=code_idx;
   entry.vclass=(char)vclass;
   entry.ident=(char)ident;
   entry.tag=tag;
   entry.usage=(char)usage;
-  entry.flags=0;
   entry.compound=0;     /* may be overridden later */
   entry.states=NULL;
   entry.fnumber=-1;     /* assume global visibility (ignored for local symbols) */
-  entry.lnumber=fline;
   entry.numrefers=1;
   entry.refer=refer;
   entry.parent=NULL;
@@ -2882,7 +2668,8 @@ SC_FUNC symbol *addsym(const char *name,cell addr,int ident,int vclass,int tag,i
   /* then insert it in the list */
   if (vclass==sGLOBAL)
     return add_symbol(&glbtab,&entry,TRUE);
-  return add_symbol(&loctab, &entry, FALSE);
+  else
+    return add_symbol(&loctab,&entry,FALSE);
 }
 
 SC_FUNC symbol *addvariable(const char *name,cell addr,int ident,int vclass,int tag,
@@ -2893,12 +2680,10 @@ SC_FUNC symbol *addvariable(const char *name,cell addr,int ident,int vclass,int 
   /* global variables may only be defined once
    * One complication is that functions returning arrays declare an array
    * with the same name as the function, so the assertion must allow for
-   * this special case. Another complication is that variables may be
-   * "redeclared" if they are local to an automaton (and findglb() will find
-   * the symbol without states if no symbol with states exists).
+   * this special case.
    */
   assert(vclass!=sGLOBAL || (sym=findglb(name))==NULL || (sym->usage & uDEFINE)==0
-         || (sym->ident==iFUNCTN && (sym==curfunc || (sym->usage & uNATIVE) != 0)));
+         || sym->ident==iFUNCTN && sym==curfunc);
 
   if (ident==iARRAY || ident==iREFARRAY) {
     symbol *parent=NULL,*top;

@@ -1,0 +1,3 @@
+vector.cpp VEC_TO_ANGLES
+
+amxmodx.cpp cvar_xxx read_argc

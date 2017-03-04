@@ -1,176 +1,34 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
-
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 #include "amxmodx.h"
-#include "newmenus.h"
-// *****************************************************
-// class CPlayer
-// *****************************************************
-
-void CPlayer::Init(edict_t* e, int i)
-{
-	index = i;
-	pEdict = e;
-	initialized = false;
-	ingame = false;
-	authorized = false;
-	disconnecting = false;
-	teamIdsInitialized = false;
-
-	current = 0;
-	teamId = -1;
-	deaths = 0;
-	aiming = 0;
-	menu = 0;
-	keys = 0;
-	menuexpire = 0.0;
-	newmenu = -1;
-
-	death_weapon = nullptr;
-	name = nullptr;
-	ip = nullptr;
-	team = nullptr;
-}
-
-void CPlayer::Disconnect()
-{
-	ingame = false;
-	initialized = false;
-	authorized = false;
-	disconnecting = false;
-	teamIdsInitialized = false;
-
-	if (Menu *pMenu = get_menu_by_id(newmenu))
-		pMenu->Close(index);
-
-	List<ClientCvarQuery_Info *>::iterator iter, end=queries.end();
-	for (iter=queries.begin(); iter!=end; iter++)
-	{
-		unregisterSPForward((*iter)->resultFwd);
-		delete [] (*iter)->params;
-		delete (*iter);
-	}
-	queries.clear();
-
-	menu = 0;
-	newmenu = -1;
-}
-
-void CPlayer::PutInServer()
-{
-	playtime = gpGlobals->time;
-	ingame = true;
-}
-
-int CPlayer::NextHUDChannel()
-{
-	int ilow = 1;
-
-	for (int i=ilow+1; i<=4; i++)
-	{
-		if (channels[i] < channels[ilow])
-			ilow = i;
-	}
-
-	return ilow;
-}
-
-bool CPlayer::Connect(const char* connectname, const char* ipaddress)
-{
-	name = connectname;
-	ip = ipaddress;
-	time = gpGlobals->time;
-	death_killer = 0;
-	menu = 0;
-	newmenu = -1;
-	
-	memset(flags, 0, sizeof(flags));
-	memset(weapons, 0, sizeof(weapons));
-	
-	initialized = true;
-	authorized = false;
-
-	for (int i=0; i<=4; i++)
-	{
-		channels[i] = 0.0f;
-		hudmap[i] = 0;
-	}
-
-	List<ClientCvarQuery_Info *>::iterator iter, end=queries.end();
-	for (iter=queries.begin(); iter!=end; iter++)
-	{
-		unregisterSPForward((*iter)->resultFwd);
-		delete [] (*iter)->params;
-		delete (*iter);
-	}
-	queries.clear();
-
-	const char* authid = GETPLAYERAUTHID(pEdict);
-
-	if ((authid == 0) || (*authid == 0) || (strcmp(authid, "STEAM_ID_PENDING") == 0))
-		return true;
-
-	return false;
-}
-
-// *****************************************************
-// class Grenades
-// *****************************************************
-
-void Grenades::put(edict_t* grenade, float time, int type, CPlayer* player)
-{
-	Obj* a = new Obj;
-	if (a == 0) return;
-	a->player = player;
-	a->grenade = grenade;
-	a->time = gpGlobals->time + time;
-	a->type = type;
-	a->next = head;
-	head = a;
-}
-
-bool Grenades::find(edict_t* enemy, CPlayer** p, int& type)
-{
-	bool found = false;
-	Obj** a = &head;
-	
-	while (*a)
-	{
-		if ((*a)->time > gpGlobals->time)
-		{
-			if ((*a)->grenade == enemy)
-			{
-				found = true;
-				(*p) = (*a)->player;
-				type = (*a)->type;
-			}
-		} else {
-			Obj* b = (*a)->next;
-			delete *a;
-			*a = b;
-			continue;
-		}
-		a = &(*a)->next;
-	}
-	
-	return found;
-}
-
-void Grenades::clear()
-{
-	while (head)
-	{
-		Obj* a = head->next;
-		delete head;
-		head = a;
-	}
-}
 
 // *****************************************************
 // class XVars
@@ -218,76 +76,3 @@ int XVars::realloc_array(int nsize)
 	
 	return 1;
 }
-
-// *****************************************************
-// class TeamIds
-// *****************************************************
-
-TeamIds::TeamIds() { head = 0; newTeam = 0; }
-
-TeamIds::~TeamIds()
-{
-	while (head)
-	{
-		TeamEle* a = head->next;
-		delete head;
-		head = a;
-	}
-}
-
-void TeamIds::registerTeam(const char* n, int s)
-{
-	TeamEle** a = &head;
-	
-	while (*a)
-	{
-		if (strcmp((*a)->name.chars(),n) == 0)
-		{
-			if (s != -1)
-			{
-				(*a)->id = s;
-				newTeam &= ~(1<<(*a)->tid);				
-			}
-			
-			return;
-		}
-		a = &(*a)->next;
-	}
-
-	*a = new TeamEle(n, s);
-	
-	if (*a == 0)
-		return;
-	
-	newTeam |= (1<<(*a)->tid);
-}
-
-int TeamIds::findTeamId(const char* n)
-{
-	TeamEle* a = head;
-	
-	while (a)
-	{
-		if (!stricmp(a->name.chars(), n))
-			return a->id;
-		a = a->next;
-	}
-	
-	return -1;
-}
-
-int TeamIds::findTeamIdCase(const char* n)
-{
-	TeamEle* a = head;
-	
-	while (a)
-	{
-		if (!strcmp(a->name.chars(), n))
-			return a->id;
-		a = a->next;
-	}
-	
-	return -1;
-}
-
-char TeamIds::TeamEle::uid = 0;

@@ -1,11 +1,33 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 #ifndef LOGEVENTS_H
 #define LOGEVENTS_H
@@ -13,7 +35,6 @@
 #define MAX_LOGARGS 12
 
 #include <stdarg.h>
-#include "natives_handles.h"
 
 // *****************************************************
 // class LogEventsMngr
@@ -42,7 +63,7 @@ public:
 		friend class CLogEvent;
 		
 		LogEventsMngr* parent;
-		ke::AString text;
+		String text;
 		
 		int logid;
 		int pos;
@@ -96,16 +117,13 @@ public:
 		
 		LogCond *filters;
 		LogEventsMngr* parent;
-
-		ForwardState m_State;
-
+		
 		CLogEvent *next;
-		CLogEvent(CPluginMngr::CPlugin *p, int f, LogEventsMngr* ppp) : plugin(p), func(f), filters(nullptr), parent(ppp), m_State(FSTATE_ACTIVE), next(nullptr) {}
+		CLogEvent(CPluginMngr::CPlugin *p, int f, LogEventsMngr* ppp) : plugin(p), func(f), filters(0), parent(ppp), next(0) {}
 		~CLogEvent();
 	public:
 		inline CPluginMngr::CPlugin *getPlugin() { return plugin; }
 		void registerFilter(char* filter);
-		void setForwardState(ForwardState value);
 		inline int getFunction() { return func; }
 	};
 
@@ -120,7 +138,7 @@ public:
 	~LogEventsMngr();
 
 	// Interface
-	int registerLogEvent(CPluginMngr::CPlugin* plugin, int func, int pos);
+	CLogEvent* registerLogEvent(CPluginMngr::CPlugin* plugin, int func, int pos);
 	inline bool logEventsExist() { return arelogevents; } 
 	
 	void setLogString(const char* frmt, va_list& vaptr);
@@ -156,13 +174,5 @@ public:
 	inline iterator begin() { return iterator(getValidLogEvent(logevents[logArgc]), this); }
 	inline iterator end() { return iterator(0, this); }
 };
-
-struct LogEventHook
-{
-	explicit LogEventHook(LogEventsMngr::CLogEvent *logevent) : m_logevent(logevent) {}
-	LogEventsMngr::CLogEvent *m_logevent;
-};
-
-extern NativeHandle<LogEventHook> LogEventHandles;
 
 #endif //LOGEVENTS_H

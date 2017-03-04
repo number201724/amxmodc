@@ -24,8 +24,9 @@
  *  2.  Altered source versions must be plainly marked as such, and must not be
  *      misrepresented as being the original software.
  *  3.  This notice may not be removed or altered from any source distribution.
+ *
+ *  Version: $Id: sc.h 3460 2007-04-24 13:36:36Z sawce $
  */
-
 #ifndef SC_H_INCLUDED
 #define SC_H_INCLUDED
 #include <limits.h>
@@ -55,7 +56,7 @@
 #define sCHARBITS   8       /* size of a packed character */
 
 #define sDIMEN_MAX     3    /* maximum number of array dimensions */
-#define sLINEMAX     4095    /* input line length (in characters) */
+#define sLINEMAX     511    /* input line length (in characters) */
 #define sCOMP_STACK   32    /* maximum nesting of #if .. #endif sections */
 #define sDEF_LITMAX  500    /* initial size of the literal pool, in "cells" */
 #define sDEF_AMXSTACK 4096  /* default stack size for AMX files */
@@ -127,8 +128,7 @@ typedef struct s_symbol {
   cell codeaddr;        /* address (in the code segment) where the symbol declaration starts */
   char vclass;          /* sLOCAL if "addr" refers to a local symbol */
   char ident;           /* see below for possible values */
-  short usage;          /* see below for possible values */
-  char flags;          /* see below for possible values */
+  char usage;           /* see below for possible values */
   int compound;         /* compound level (braces nesting level) */
   int tag;              /* tagname id */
   int fieldtag;         /* enumeration fields, where a size is attached to the field */
@@ -148,7 +148,6 @@ typedef struct s_symbol {
   } dim;                /* for 'dimension', both functions and arrays */
   constvalue *states;   /* list of state function addresses */
   int fnumber;          /* static global variables: file number in which the declaration is visible */
-  int lnumber;          /* line number (in the current source file) for the declaration */
   struct s_symbol **refer;  /* referrer list, functions that "use" this symbol */
   int numrefers;        /* number of entries in the referrer list */
   char *documentation;  /* optional documentation string */
@@ -217,14 +216,11 @@ typedef struct s_symbol {
 #define uSTOCK    0x40
 #define uENUMFIELD 0x40
 #define uMISSING  0x80
-#define uVISITED  0x100 /* temporary flag, to mark fields as "visited" in recursive loops */
 /* uRETNONE is not stored in the "usage" field of a symbol. It is
  * used during parsing a function, to detect a mix of "return;" and
  * "return value;" in a few special cases.
  */
 #define uRETNONE  0x10
-
-#define flgDEPRECATED 0x01  /* symbol is deprecated (avoid use) */
 
 #define uTAGOF    0x40  /* set in the "hasdefault" field of the arginfo struct */
 #define uSIZEOF   0x80  /* set in the "hasdefault" field of the arginfo struct */
@@ -241,7 +237,6 @@ typedef struct s_value {
   cell constval;        /* value of the constant expression (if ident==iCONSTEXPR)
                          * also used for the size of a literal array */
   int tag;              /* tagname id (of the expression) */
-  char forceuntag;      /* whether expression is untagged using _: */
   char ident;           /* iCONSTEXPR, iVARIABLE, iARRAY, iARRAYCELL,
                          * iEXPRESSION or iREFERENCE */
   char boolresult;      /* boolean result for relational operators */
@@ -276,8 +271,6 @@ typedef struct s_stringpair {
   char *first;
   char *second;
   int matchlength;
-  char flags;
-  char *documentation;
 } stringpair;
 
 /* macros for code generation */
@@ -372,9 +365,7 @@ typedef struct s_stringpair {
 #define tSYMBOL  330
 #define tLABEL   331
 #define tSTRING  332
-#define tPENDING_STRING 333
-#define tEXPR    334    /* for assigment to "lastst" only */
-#define tEMPTYBLOCK 335 /* empty blocks for AM bug 4825 */
+#define tEXPR    333    /* for assigment to "lastst" only */
 
 /* (reversed) evaluation of staging buffer */
 #define sSTARTREORDER 0x01
@@ -410,8 +401,6 @@ typedef struct s_stringpair {
 #define sFORCESET       1       /* force error flag on */
 #define sEXPRMARK       2       /* mark start of expression */
 #define sEXPRRELEASE    3       /* mark end of expression */
-#define sSETLINE        4       /* set line number for the error */
-#define sSETFILE        5       /* set file number for the error */
 
 typedef enum s_regid {
   sPRI,                         /* indicates the primary register */
@@ -520,7 +509,6 @@ SC_FUNC void delete_consttable(constvalue *table);
 SC_FUNC symbol *add_constant(char *name,cell val,int vclass,int tag);
 SC_FUNC void exporttag(int tag);
 SC_FUNC void sc_attachdocumentation(symbol *sym);
-SC_FUNC int get_actual_compound(symbol *sym);
 
 /* function prototypes in SC2.C */
 #define PUSHSTK_P(v)  { stkitem s_; s_.pv=(v); pushstk(s_); }
@@ -548,6 +536,7 @@ SC_FUNC void delete_symbol(symbol *root,symbol *sym);
 SC_FUNC void delete_symbols(symbol *root,int level,int del_labels,int delete_functions);
 SC_FUNC int refer_symbol(symbol *entry,symbol *bywhom);
 SC_FUNC void markusage(symbol *sym,int usage);
+SC_FUNC uint32_t namehash(const char *name);
 SC_FUNC symbol *findglb(const char *name);
 SC_FUNC symbol *findloc(const char *name);
 SC_FUNC symbol *findconst(const char *name);
@@ -610,8 +599,6 @@ SC_FUNC void addr2cell(void);
 SC_FUNC void char2addr(void);
 SC_FUNC void charalign(void);
 SC_FUNC void addconst(cell value);
-SC_FUNC void move_alt(void);
-SC_FUNC void load_hidden_arg();
 
 /*  Code generation functions for arithmetic operators.
  *
@@ -653,7 +640,7 @@ SC_FUNC void outval(cell val,int newline);
 
 /* function prototypes in SC5.C */
 SC_FUNC int error(int number,...) INVISIBLE;
-SC_FUNC void errorset(int code, int line);
+SC_FUNC void errorset(int code);
 
 /* function prototypes in SC6.C */
 SC_FUNC int assemble(FILE *fout,FILE *fin);
@@ -686,9 +673,6 @@ SC_FUNC void delete_substtable(void);
 SC_FUNC stringlist *insert_sourcefile(char *string);
 SC_FUNC char *get_sourcefile(int index);
 SC_FUNC void delete_sourcefiletable(void);
-SC_FUNC stringlist *insert_inputfile(char *string);
-SC_FUNC char *get_inputfile(int index);
-SC_FUNC void delete_inputfiletable(void);
 SC_FUNC stringlist *insert_docstring(char *string);
 SC_FUNC char *get_docstring(int index);
 SC_FUNC void delete_docstring(int index);
@@ -743,8 +727,6 @@ SC_FUNC void state_conflict(symbol *root);
 
 /* external variables (defined in scvars.c) */
 #if !defined SC_SKIP_VDECL
-typedef struct HashTable HashTable;
-SC_VDECL struct HashTable *sp_Globals;
 SC_VDECL symbol loctab;       /* local symbol table */
 SC_VDECL symbol glbtab;       /* global symbol table */
 SC_VDECL cell *litq;          /* the literal queue */
@@ -781,14 +763,13 @@ SC_VDECL int sc_needsemicolon;/* semicolon required to terminate expressions? */
 SC_VDECL int sc_dataalign;    /* data alignment value */
 SC_VDECL int sc_alignnext;    /* must frame of the next function be aligned? */
 SC_VDECL int pc_docexpr;      /* must expression be attached to documentation comment? */
-SC_VDECL int sc_showincludes; /* show include files? */
 SC_VDECL int curseg;          /* 1 if currently parsing CODE, 2 if parsing DATA */
 SC_VDECL cell sc_stksize;     /* stack size */
 SC_VDECL cell sc_amxlimit;    /* abstract machine size limit */
 SC_VDECL int freading;        /* is there an input file ready for reading? */
 SC_VDECL int fline;           /* the line number in the current file */
-SC_VDECL short fnumber;       /* number of files in the input file table */
-SC_VDECL short fcurrent;      /* current file being processed */
+SC_VDECL short fnumber;       /* number of files in the file table (debugging) */
+SC_VDECL short fcurrent;      /* current file being processed (debugging) */
 SC_VDECL short sc_intest;     /* true if inside a test */
 SC_VDECL int sideeffect;      /* true if an expression causes a side-effect */
 SC_VDECL int stmtindent;      /* current indent of the statement */
@@ -800,8 +781,6 @@ SC_VDECL int sc_rationaltag;  /* tag for rational numbers */
 SC_VDECL int rational_digits; /* number of fractional digits */
 SC_VDECL int sc_allowproccall;/* allow/detect tagnames in lex() */
 SC_VDECL short sc_is_utf8;    /* is this source file in UTF-8 encoding */
-SC_VDECL char *pc_deprecate;  /* if non-NULL, mark next declaration as deprecated */
-SC_VDECL int sc_warnings_are_errors;
 
 SC_VDECL constvalue sc_automaton_tab; /* automaton table */
 SC_VDECL constvalue sc_state_tab;     /* state table */
@@ -813,8 +792,6 @@ SC_VDECL FILE *inpf_org;      /* main source file */
 SC_VDECL FILE *outf;          /* file written to */
 
 SC_VDECL jmp_buf errbuf;      /* target of longjmp() on a fatal error */
-
-SC_VDECL SC_VDEFINE char sLiteralQueueDisabled;
 
 #if !defined SC_LIGHT
   SC_VDECL int sc_makereport; /* generate a cross-reference report */

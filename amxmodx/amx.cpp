@@ -17,6 +17,8 @@
  *  2.  Altered source versions must be plainly marked as such, and must not be
  *      misrepresented as being the original software.
  *  3.  This notice may not be removed or altered from any source distribution.
+ *
+ *  Version: $Id: amx.cpp 3707 2008-04-14 19:56:31Z sawce $
  */
 
 #define AMX_NODYNALOAD
@@ -934,7 +936,7 @@ int AMXAPI amx_Init(AMX *amx, void *program)
 
     /* Linux already has mprotect() */
     /* But wants the address aligned! */
-    #define ALIGN(addr) ((void *)((intptr_t)addr & ~(sysconf(_SC_PAGESIZE)-1)))
+    #define ALIGN(addr) (char *)(((long)addr + sysconf(_SC_PAGESIZE)-1) & ~(sysconf(_SC_PAGESIZE)-1))
 
   #else
 
@@ -1173,12 +1175,12 @@ int AMXAPI amx_GetNative(AMX *amx, int index, char *funcname)
 
 int AMXAPI amx_FindNative(AMX *amx, const char *name, int *index)
 {
-  int last,mid;
+  int first,last,mid;
   char pname[sNAMEMAX+1];
 
   amx_NumNatives(amx, &last);
   last--;       /* last valid index is 1 less than the number of functions */
-
+  first=0;
   /* normal search */
   for (mid=0; mid<=last; mid++)
   {
@@ -1638,7 +1640,7 @@ int AMXAPI amx_PushString(AMX *amx, cell *amx_addr, cell **phys_addr, const char
      * fast "indirect threaded" interpreter.
      */
 
-#define NEXT(cip)       goto *(const void *)*cip++
+#define NEXT(cip)       goto **cip++
 
 int AMXAPI amx_Exec(AMX *amx, cell *retval, int index)
 {
@@ -1822,14 +1824,14 @@ static const void * const amx_opcodelist[] = {
     NEXT(cip);
   op_load_i:
     /* verify address */
-    if ((pri>=hea && pri<stk) || (ucell)pri>=(ucell)amx->stp)
+    if (pri>=hea && pri<stk || (ucell)pri>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
     pri= * (cell *)(data+(int)pri);
     NEXT(cip);
   op_lodb_i:
     GETPARAM(offs);
     /* verify address */
-    if ((pri>=hea && pri<stk) || (ucell)pri>=(ucell)amx->stp)
+    if (pri>=hea && pri<stk || (ucell)pri>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
     switch (offs) {
     case 1:
@@ -1895,14 +1897,14 @@ static const void * const amx_opcodelist[] = {
     NEXT(cip);
   op_stor_i:
     /* verify address */
-    if ((alt>=hea && alt<stk) || (ucell)alt>=(ucell)amx->stp)
+    if (alt>=hea && alt<stk || (ucell)alt>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
     *(cell *)(data+(int)alt)=pri;
     NEXT(cip);
   op_strb_i:
     GETPARAM(offs);
     /* verify address */
-    if ((alt>=hea && alt<stk) || (ucell)alt>=(ucell)amx->stp)
+    if (alt>=hea && alt<stk || (ucell)alt>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
     switch (offs) {
     case 1:
@@ -1919,7 +1921,7 @@ static const void * const amx_opcodelist[] = {
   op_lidx:
     offs=pri*sizeof(cell)+alt;
     /* verify address */
-    if ((offs>=hea && offs<stk) || (ucell)offs>=(ucell)amx->stp)
+    if (offs>=hea && offs<stk || (ucell)offs>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
     pri= * (cell *)(data+(int)offs);
     NEXT(cip);
@@ -1927,7 +1929,7 @@ static const void * const amx_opcodelist[] = {
     GETPARAM(offs);
     offs=(pri << (int)offs)+alt;
     /* verify address */
-    if ((offs>=hea && offs<stk) || (ucell)offs>=(ucell)amx->stp)
+    if (offs>=hea && offs<stk || (ucell)offs>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
     pri= * (cell *)(data+(int)offs);
     NEXT(cip);
@@ -2364,13 +2366,13 @@ static const void * const amx_opcodelist[] = {
     /* verify top & bottom memory addresses, for both source and destination
      * addresses
      */
-    if ((pri>=hea && pri<stk) || (ucell)pri>=(ucell)amx->stp)
+    if (pri>=hea && pri<stk || (ucell)pri>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
-    if (((pri+offs)>hea && (pri+offs)<stk) || (ucell)(pri+offs)>(ucell)amx->stp)
+    if ((pri+offs)>hea && (pri+offs)<stk || (ucell)(pri+offs)>(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
-    if ((alt>=hea && alt<stk) || (ucell)alt>=(ucell)amx->stp)
+    if (alt>=hea && alt<stk || (ucell)alt>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
-    if (((alt+offs)>hea && (alt+offs)<stk) || (ucell)(alt+offs)>(ucell)amx->stp)
+    if ((alt+offs)>hea && (alt+offs)<stk || (ucell)(alt+offs)>(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
     memcpy(data+(int)alt, data+(int)pri, (int)offs);
     NEXT(cip);
@@ -2379,22 +2381,22 @@ static const void * const amx_opcodelist[] = {
     /* verify top & bottom memory addresses, for both source and destination
      * addresses
      */
-    if ((pri>=hea && pri<stk) || (ucell)pri>=(ucell)amx->stp)
+    if (pri>=hea && pri<stk || (ucell)pri>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
-    if (((pri+offs)>hea && (pri+offs)<stk) || (ucell)(pri+offs)>(ucell)amx->stp)
+    if ((pri+offs)>hea && (pri+offs)<stk || (ucell)(pri+offs)>(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
-    if ((alt>=hea && alt<stk) || (ucell)alt>=(ucell)amx->stp)
+    if (alt>=hea && alt<stk || (ucell)alt>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
-    if (((alt+offs)>hea && (alt+offs)<stk) || (ucell)(alt+offs)>(ucell)amx->stp)
+    if ((alt+offs)>hea && (alt+offs)<stk || (ucell)(alt+offs)>(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
     pri=memcmp(data+(int)alt, data+(int)pri, (int)offs);
     NEXT(cip);
   op_fill:
     GETPARAM(offs);
     /* verify top & bottom memory addresses */
-    if ((alt>=hea && alt<stk) || (ucell)alt>=(ucell)amx->stp)
+    if (alt>=hea && alt<stk || (ucell)alt>=(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
-    if (((alt+offs)>hea && (alt+offs)<stk) || (ucell)(alt+offs)>(ucell)amx->stp)
+    if ((alt+offs)>hea && (alt+offs)<stk || (ucell)(alt+offs)>(ucell)amx->stp)
       ABORT(amx,AMX_ERR_MEMACCESS);
     for (i=(int)alt; offs>=(int)sizeof(cell); i+=sizeof(cell), offs-=sizeof(cell))
       *(cell *)(data+i) = pri;
@@ -4092,6 +4094,10 @@ int AMXAPI amx_GetLibraries(AMX *amx)
 	return numLibraries;
 }
 
+#if defined(__linux__) || defined(__APPLE__)
+#define _snprintf snprintf
+#endif
+
 const char *AMXAPI amx_GetLibrary(AMX *amx, int index, char *buffer, int len)
 {
 	AMX_HEADER *hdr = (AMX_HEADER *)amx->base;
@@ -4135,7 +4141,7 @@ int AMXAPI amx_SetStringOld(cell *dest,const char *source,int pack,int use_wchar
         dest[i]=(cell)(((wchar_t*)source)[i]);
     } else {
       for (i=0; i<len; i++)
-        dest[i]=(unsigned char)source[i];
+        dest[i]=(cell)source[i];
     } /* if */
     dest[len]=0;
   } /* if */

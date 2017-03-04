@@ -29,8 +29,9 @@
  *  2.  Altered source versions must be plainly marked as such, and must not be
  *      misrepresented as being the original software.
  *  3.  This notice may not be removed or altered from any source distribution.
+ *
+ *  Version: $Id: sci18n.c 1724 2005-07-24 20:00:55Z dvander $
  */
-
 #include <assert.h>
 #include <stdio.h>
 #include <stddef.h>
@@ -395,12 +396,11 @@ SC_FUNC int scan_utf8(FILE *fp,const char *filename)
   #if defined NO_UTF8
     return 0;
   #else
-    static void *resetpos=NULL;
+    void *resetpos=pc_getpossrc(fp);
     int utf8=TRUE;
     int firstchar=TRUE,bom_found=FALSE;
     const unsigned char *ptr;
 
-    resetpos=pc_getpossrc(fp);
     while (utf8 && pc_readsrc(fp,pline,sLINEMAX)!=NULL) {
       ptr=pline;
       if (firstchar) {

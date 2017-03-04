@@ -1,11 +1,33 @@
-// vim: set ts=4 sw=4 tw=99 noet:
-//
-// AMX Mod X, based on AMX Mod by Aleksander Naszko ("OLO").
-// Copyright (C) The AMX Mod X Development Team.
-//
-// This software is licensed under the GNU General Public License, version 3 or higher.
-// Additional exceptions apply. For full license details, see LICENSE.txt or visit:
-//     https://alliedmods.net/amxmodx-license
+/* AMX Mod X
+*
+* by the AMX Mod X Development Team
+*  originally developed by OLO
+*
+*
+*  This program is free software; you can redistribute it and/or modify it
+*  under the terms of the GNU General Public License as published by the
+*  Free Software Foundation; either version 2 of the License, or (at
+*  your option) any later version.
+*
+*  This program is distributed in the hope that it will be useful, but
+*  WITHOUT ANY WARRANTY; without even the implied warranty of
+*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+*  General Public License for more details.
+*
+*  You should have received a copy of the GNU General Public License
+*  along with this program; if not, write to the Free Software Foundation,
+*  Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+*
+*  In addition, as a special exception, the author gives permission to
+*  link the code of this program with the Half-Life Game Engine ("HL
+*  Engine") and Modified Game Libraries ("MODs") developed by Valve,
+*  L.L.C ("Valve"). You must obey the GNU General Public License in all
+*  respects for all of the code used other than the HL Engine and MODs
+*  from Valve. If you modify this file, you may extend this exception
+*  to your version of the file, but you are not obligated to do so. If
+*  you do not wish to do so, delete this exception statement from your
+*  version.
+*/
 
 // *****************************************************
 // class CModule
@@ -54,7 +76,7 @@ struct amxx_module_info_s
 
 class CModule 
 {
-	ke::AString m_Filename;         // Filename
+	String m_Filename;				// Filename
 	
 	bool m_Metamod;					// Using metamod?
 	bool m_Amxx;					// Using new module interface?
@@ -76,10 +98,6 @@ public:
 	bool detachModule();
 	void rewriteNativeLists(AMX_NATIVE_INFO *list);
 
-#ifndef FAKEMETA
-	bool attachMetamod(const char *mmfile, PLUG_LOADTIME now);
-#endif
-
 	const char* getStatus() const;
 	inline const char* getType() const { return m_Amxx ? "amxx" : (m_Metamod ? "amx&mm" : "amx"); }
 	inline const char* getAuthor() const { return m_InfoNew.author; }
@@ -87,20 +105,19 @@ public:
 	inline const char* getName() const { return m_InfoNew.name; }
 	inline const amxx_module_info_s* getInfoNew() const { return &m_InfoNew; }	// new
 	inline int getStatusValue() { return m_Status; }
-	inline bool operator==(const char* fname) { return !strcmp(m_Filename.chars(), fname); }
+	inline bool operator==(const char* fname) { return !strcmp(m_Filename.c_str(), fname); }
 	inline bool isReloadable() { return ((m_Status == MODULE_LOADED) && (m_InfoNew.reload != 0)); }
 	inline bool isAmxx() const { return m_Amxx; }
 	inline const char *getMissingFunc() const { return m_MissingFunc; }
-	inline const char *getFilename() { return m_Filename.chars(); }
-	inline bool IsMetamod() { return m_Metamod; }
+	inline const char *getFilename() { return m_Filename.c_str(); }
 	
 	void CallPluginsLoaded();
 	void CallPluginsUnloaded();
 	void CallPluginsUnloading();
 
-	ke::Vector<AMX_NATIVE_INFO*> m_Natives;
-	ke::Vector<AMX_NATIVE_INFO*> m_NewNatives; // Natives for new (AMXX, not AMX) plugins only
-	ke::Vector<size_t> m_DestroyableIndexes;
+	CVector<AMX_NATIVE_INFO*> m_Natives;
+	CVector<AMX_NATIVE_INFO*> m_NewNatives; // Natives for new (AMXX, not AMX) plugins only
+	CVector<size_t> m_DestroyableIndexes;
 };
 
 #endif //CMODULE_H
