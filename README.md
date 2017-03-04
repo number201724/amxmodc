@@ -1,7 +1,7 @@
-AMX Mod X
+AMX Mod C
 =========
 
-AMX Mod X - Half-Life 1 Scripting and Server Administration
+AMX Mod C - Half-Life 1 Scripting in GameClient
 
 General
 -------
